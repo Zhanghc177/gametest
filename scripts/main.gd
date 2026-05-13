@@ -18,6 +18,13 @@ const ANT_STATS = {
 ## 性能优化配置
 const MAX_ENEMIES: int = 20  # 敌人数量上限
 const MAX_CELEBRATION_PARTICLES: int = 15  # 撤离庆祝粒子上限
+const RESOURCE_TYPES = ["beetle_remains", "locust_remains", "spider_remains", "mantis_remains"]
+const RESOURCE_NAMES = {
+	"beetle_remains": "甲虫",
+	"locust_remains": "蝗虫",
+	"spider_remains": "蜘蛛",
+	"mantis_remains": "螳螂"
+}
 
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Player/Camera2D
@@ -56,6 +63,7 @@ var gamepad_rb: bool = false  # RB 按钮
 var prev_gamepad_lb: bool = false  # LB 上一帧状态（用于检测按下）
 var prev_gamepad_rb: bool = false  # RB 上一帧状态
 var inventory: Dictionary = { "beetle_remains": 0, "locust_remains": 0, "spider_remains": 0, "mantis_remains": 0, "bee_remains": 0 }
+var battle_collected_resources: Dictionary = {}
 var extraction_progress: float = 0.0
 var has_extraction_started: bool = false
 
@@ -812,12 +820,11 @@ func _on_ant_died(ant: CharacterBody2D) -> void:
 func spawn_resources() -> void:
 	# 随机生成3-5个资源点
 	var resource_count = randi() % 3 + 3  # 3-5个
-	var resource_types = ["beetle_remains", "locust_remains", "spider_remains", "mantis_remains"]
 
 	for i in range(resource_count):
 		# 在地图范围内随机生成位置，避免太靠近边缘
 		var pos = Vector2(randf_range(100, 980), randf_range(100, 1500))
-		var res_type = resource_types[randi() % resource_types.size()]
+		var res_type = RESOURCE_TYPES[randi() % RESOURCE_TYPES.size()]
 		spawn_resource(pos, res_type)
 	print("Main: 生成了 %d 个资源点" % resource_count)
 
@@ -973,6 +980,10 @@ func _on_resource_picked_up(resource: Area2D, res_type: String = "beetle_remains
 		inventory[res_type] += 1
 	else:
 		inventory[res_type] = 1
+	if res_type in battle_collected_resources:
+		battle_collected_resources[res_type] += 1
+	else:
+		battle_collected_resources[res_type] = 1
 	resource_collected.emit(1)
 	player.apply_attack_boost()
 	resources.erase(resource)
@@ -1080,7 +1091,7 @@ func show_settlement(is_victory: bool, is_extraction: bool = false) -> void:
 
 	# 资源统计
 	var resource_label = Label.new()
-	resource_label.text = "获得资源: %d" % inventory.beetle_remains
+	resource_label.text = "获得资源: %s" % _format_resource_counts(battle_collected_resources)
 	resource_label.size = Vector2(300, 30)
 	resource_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	stats_vbox.add_child(resource_label)
@@ -1114,7 +1125,6 @@ func show_settlement(is_victory: bool, is_extraction: bool = false) -> void:
 	return_btn.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	return_btn.offset_top = 260
 	return_btn.size = Vector2(200, 45)
-	return_btn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return_btn.connect("pressed", _on_return_button_pressed)
 	settlement_panel.add_child(return_btn)
 
@@ -1229,6 +1239,7 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 		inventory["mantis_remains"] = 0
 	if not inventory.has("food") or inventory.get("food", 0) <= 0:
 		inventory["food"] = 100
+	_reset_battle_collected_resources()
 	print("Main: start_battle - inventory after check=", inventory, ", food=", inventory.get("food", 0))
 	print("Main: start_battle - canvas_layer=", canvas_layer)
 	extraction_progress = 0.0
@@ -1331,7 +1342,30 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 	print("Main: start_battle completed")
 
 func get_collected_resources() -> Dictionary:
-	return inventory.duplicate()
+	return battle_collected_resources.duplicate()
+
+func _reset_battle_collected_resources() -> void:
+	battle_collected_resources.clear()
+	for resource_type in RESOURCE_TYPES:
+		battle_collected_resources[resource_type] = 0
+
+func _get_total_collected_resources() -> int:
+	var total = 0
+	for resource_type in RESOURCE_TYPES:
+		total += int(battle_collected_resources.get(resource_type, 0))
+	return total
+
+func _format_resource_counts(resources: Dictionary) -> String:
+	var text = ""
+	for resource_type in RESOURCE_TYPES:
+		var amount = int(resources.get(resource_type, 0))
+		if amount > 0:
+			if text != "":
+				text += "、"
+			text += "%s x%d" % [RESOURCE_NAMES.get(resource_type, resource_type), amount]
+	if text == "":
+		return "0"
+	return text
 
 func update_ui() -> void:
 	print("Main: update_ui called, canvas_layer=", canvas_layer)
@@ -1342,8 +1376,8 @@ func update_ui() -> void:
 		if vbox:
 			var resource_label = vbox.get_node_or_null("ResourceLabel")
 			if resource_label:
-				resource_label.text = "x %d" % inventory.beetle_remains
-				print("Main: update_ui - set resource_label to x %d" % inventory.beetle_remains)
+				resource_label.text = "x %d" % _get_total_collected_resources()
+				print("Main: update_ui - set resource_label to x %d" % _get_total_collected_resources())
 
 	var buff_label = canvas_layer.get_node_or_null("BuffLabel")
 	if buff_label:
