@@ -306,21 +306,6 @@ func spawn_attack_effect() -> void:
 
 func show_warn_fan() -> void:
 	hide_warn_fan()
-	warn_fan = Polygon2D.new()
-	var points = PackedVector2Array()
-	points.append(Vector2.ZERO)
-
-	var segments = 12
-	var fan_angle = PI / 2
-	for i in range(segments + 1):
-		var a = -fan_angle / 2 + fan_angle * i / segments
-		points.append(Vector2(cos(a), sin(a)) * WARN_RANGE)
-
-	warn_fan.polygon = points
-	warn_fan.color = Color(1.0, 0.2, 0.2, 0.25)
-	warn_fan.global_position = global_position
-	warn_fan.rotation = attack_direction
-	get_tree().root.add_child(warn_fan)
 
 func hide_warn_fan() -> void:
 	if warn_fan:
@@ -328,25 +313,8 @@ func hide_warn_fan() -> void:
 		warn_fan = null
 
 ## 警戒范围脉冲红圈效果
-func _update_warning_pulse(delta: float) -> void:
-	pulse_timer += delta
-	var pulse_scale = 1.0 + sin(pulse_timer * 6.0) * 0.15
-	var pulse_alpha = 0.3 + sin(pulse_timer * 6.0) * 0.15
-
-	if not pulse_circle:
-		pulse_circle = Polygon2D.new()
-		var circle_points = PackedVector2Array()
-		for i in range(32):
-			var a = 2 * PI * i / 32
-			circle_points.append(Vector2(cos(a), sin(a)) * WARN_RANGE)
-		pulse_circle.polygon = circle_points
-		pulse_circle.color = Color(1.0, 0.2, 0.2, 0.25)
-		pulse_circle.global_position = global_position
-		get_tree().root.add_child(pulse_circle)
-	else:
-		pulse_circle.global_position = global_position
-		pulse_circle.scale = Vector2(pulse_scale, pulse_scale)
-		pulse_circle.modulate.a = pulse_alpha
+func _update_warning_pulse(_delta: float) -> void:
+	_hide_warning_effects()
 
 func _hide_warning_effects() -> void:
 	if pulse_circle:
@@ -356,17 +324,6 @@ func _hide_warning_effects() -> void:
 ## 显示攻击范围红框
 func _show_attack_range_box() -> void:
 	_hide_attack_range_box()
-	attack_range_box = Polygon2D.new()
-	var box_points = PackedVector2Array([
-		Vector2(-ATK_RANGE - 24, -ATK_RANGE - 24),
-		Vector2(ATK_RANGE + 24, -ATK_RANGE - 24),
-		Vector2(ATK_RANGE + 24, ATK_RANGE + 24),
-		Vector2(-ATK_RANGE - 24, ATK_RANGE + 24)
-	])
-	attack_range_box.polygon = box_points
-	attack_range_box.color = Color(1.0, 0.15, 0.15, 0.2)
-	attack_range_box.global_position = global_position
-	get_tree().root.add_child(attack_range_box)
 
 func _hide_attack_range_box() -> void:
 	if attack_range_box:
@@ -376,13 +333,6 @@ func _hide_attack_range_box() -> void:
 ## 显示攻击倒计时
 func _show_countdown() -> void:
 	_hide_countdown()
-	countdown_label = Label.new()
-	countdown_label.text = "%.1f" % attack_timer
-	countdown_label.global_position = global_position + Vector2(-20, -60)
-	countdown_label.add_theme_font_size_override("font_size", 20)
-	countdown_label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2, 1.0))
-	countdown_label.modulate = Color(1.0, 1.0, 1.0, 0.9)
-	get_tree().root.add_child(countdown_label)
 
 func _hide_countdown() -> void:
 	if countdown_label:
@@ -621,35 +571,7 @@ func _update_countdown() -> void:
 var screen_red_vignette: Polygon2D = null
 
 func _update_screen_red_effect() -> void:
-	var player = get_tree().get_first_node_in_group("player")
-	if not player:
-		return
-
-	var d = global_position.distance_to(player.global_position)
-	var atk_dist = ATK_RANGE + 24
-
-	if d < atk_dist * 1.5:
-		var intensity = 1.0 - (d / (atk_dist * 1.5))
-		intensity = clamp(intensity, 0.0, 1.0) * 0.4
-
-		if not screen_red_vignette:
-			screen_red_vignette = Polygon2D.new()
-			var screen_size = Vector2(1080, 1920)
-			var margin = 100
-			var vignette_points = PackedVector2Array([
-				Vector2(-margin, -margin),
-				Vector2(screen_size.x + margin, -margin),
-				Vector2(screen_size.x + margin, screen_size.y + margin),
-				Vector2(-margin, screen_size.y + margin)
-			])
-			screen_red_vignette.polygon = vignette_points
-			screen_red_vignette.color = Color(1.0, 0.0, 0.0, 0.0)
-			get_tree().root.add_child(screen_red_vignette)
-
-		if screen_red_vignette:
-			screen_red_vignette.color.a = intensity
-	else:
-		_hide_screen_red_effect()
+	_hide_screen_red_effect()
 
 func _hide_screen_red_effect() -> void:
 	if screen_red_vignette:

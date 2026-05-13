@@ -192,6 +192,14 @@ func _ready() -> void:
 	add_child(buff_effects)
 
 func _physics_process(delta: float) -> void:
+	var main = get_tree().get_first_node_in_group("main")
+	if main and main.get("game_running") == false:
+		velocity = Vector2.ZERO
+		is_dashing = false
+		is_charging = false
+		attack_fan.visible = false
+		return
+
 	_update_animation(delta)
 	apply_buff_effects(delta)
 

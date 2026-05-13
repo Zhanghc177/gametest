@@ -271,21 +271,6 @@ func spawn_attack_effect() -> void:
 
 func show_warn_fan() -> void:
 	hide_warn_fan()
-	warn_fan = Polygon2D.new()
-	var points = PackedVector2Array()
-	points.append(Vector2.ZERO)
-
-	var segments = 12
-	var fan_angle = PI / 2.5
-	for i in range(segments + 1):
-		var a = -fan_angle / 2 + fan_angle * i / segments
-		points.append(Vector2(cos(a), sin(a)) * WARN_RANGE)
-
-	warn_fan.polygon = points
-	warn_fan.color = Color(0.3, 0.8, 0.3, 0.3)
-	warn_fan.global_position = global_position
-	warn_fan.rotation = attack_direction
-	get_tree().root.add_child(warn_fan)
 
 func hide_warn_fan() -> void:
 	if warn_fan:

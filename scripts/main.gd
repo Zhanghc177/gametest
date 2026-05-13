@@ -198,6 +198,9 @@ func show_battle_ui() -> void:
 	var enemy_count_label = canvas_layer.get_node_or_null("EnemyCountLabel")
 	if enemy_count_label:
 		enemy_count_label.visible = true
+	var resource_display = canvas_layer.get_node_or_null("ResourceDisplay")
+	if resource_display:
+		resource_display.visible = true
 	var health_bar = canvas_layer.get_node_or_null("HealthBar")
 	if health_bar:
 		health_bar.visible = true
@@ -211,6 +214,13 @@ func show_battle_ui() -> void:
 	if touch_controls:
 		touch_controls.visible = true
 	print("Main: 战场UI元素已显示")
+
+func hide_battle_ui() -> void:
+	for node_path in ["EnemyCountLabel", "ResourceDisplay", "HealthBar", "BuffLabel", "Minimap", "TouchControls", "ExtractProgress"]:
+		var node = canvas_layer.get_node_or_null(node_path)
+		if node:
+			node.visible = false
+	hide_boss_ui()
 
 ## 显示BOSS血条
 func show_boss_ui(boss_name: String = "蜂后") -> void:
@@ -990,11 +1000,15 @@ func _on_resource_picked_up(resource: Area2D, res_type: String = "beetle_remains
 	update_ui()
 
 func _on_extraction_started() -> void:
+	if not game_running:
+		return
 	print("Main: extraction started!")
 	has_extraction_started = true
 	extraction_progress = 0.0
 
 func _on_extraction_progress(progress: float) -> void:
+	if not game_running:
+		return
 	extraction_progress = progress
 	update_ui()
 
@@ -1032,6 +1046,7 @@ func extraction_success() -> void:
 	# 撤离成功时震动庆祝
 	vibrate(2)
 	game_running = false
+	_reset_battle_controls()
 	survival_time = Time.get_ticks_msec() / 1000.0 - battle_start_time
 	save_battle_replay()  # 保存回放
 	await get_tree().create_timer(1.0).timeout
@@ -1137,6 +1152,66 @@ func _clear_settlement_panel() -> void:
 		settlement_panel.queue_free()
 		settlement_panel = null
 
+func _reset_battle_controls() -> void:
+	joystick_input = Vector2.ZERO
+	joystick_active = false
+	attack_button_down = false
+	dash_button_down = false
+	gamepad_leftstick = Vector2.ZERO
+	gamepad_rightstick = Vector2.ZERO
+	gamepad_lt = 0.0
+	gamepad_rt = 0.0
+	gamepad_lb = false
+	gamepad_rb = false
+	prev_gamepad_lb = false
+	prev_gamepad_rb = false
+	if player and is_instance_valid(player):
+		player.velocity = Vector2.ZERO
+		if player.get("is_dashing") != null:
+			player.is_dashing = false
+		if player.get("is_charging") != null:
+			player.is_charging = false
+		if player.has_node("AttackFan"):
+			player.get_node("AttackFan").visible = false
+
+func _clear_battle_runtime_nodes() -> void:
+	for e in enemies:
+		if is_instance_valid(e):
+			e.queue_free()
+	enemies.clear()
+
+	for a in player_ants:
+		if is_instance_valid(a):
+			a.queue_free()
+	player_ants.clear()
+
+	for r in resources:
+		if is_instance_valid(r):
+			r.queue_free()
+	resources.clear()
+
+	for obstacle in obstacles:
+		if is_instance_valid(obstacle):
+			obstacle.queue_free()
+	obstacles.clear()
+
+	current_boss = null
+	hide_boss_ui()
+	cleanup_weather_system()
+
+func prepare_for_base_return() -> void:
+	game_running = false
+	has_extraction_started = false
+	extraction_progress = 0.0
+	_returning_to_base = true
+	_reset_battle_controls()
+	if extraction_point and extraction_point.has_method("reset_extraction"):
+		extraction_point.reset_extraction()
+	_clear_battle_runtime_nodes()
+	_clear_settlement_panel()
+	hide_battle_ui()
+	update_ui()
+
 ## 撤离成功金色粒子庆祝效果
 func spawn_extraction_celebration() -> void:
 	# 在玩家位置生成金色粒子庆祝效果
@@ -1218,7 +1293,7 @@ func return_to_base() -> void:
 		print("Main: got game_manager cache:", _game_manager_cache)
 	if _game_manager_cache:
 		_returning_to_base = true
-		_clear_settlement_panel()
+		prepare_for_base_return()
 		_game_manager_cache.return_to_base()
 	else:
 		print("Main: ERROR - no game_manager found!")
@@ -1227,6 +1302,9 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 	print("Main: start_battle called, visible=", visible)
 	game_running = true
 	_returning_to_base = false
+	has_extraction_started = false
+	extraction_progress = 0.0
+	_reset_battle_controls()
 	inventory = initial_inventory.duplicate()
 	# 确保 inventory 有必要的键
 	if not inventory.has("beetle_remains"):
@@ -1242,7 +1320,6 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 	_reset_battle_collected_resources()
 	print("Main: start_battle - inventory after check=", inventory, ", food=", inventory.get("food", 0))
 	print("Main: start_battle - canvas_layer=", canvas_layer)
-	extraction_progress = 0.0
 	current_wave = 0
 	max_waves = 1
 	wave_enemies_remaining = 0
@@ -1267,26 +1344,7 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 		camera.reset_smoothing()
 		print("Main: camera reset to player position: ", player.global_position)
 
-	for e in enemies:
-		if is_instance_valid(e):
-			e.queue_free()
-	enemies.clear()
-
-	# 清理旧蚂蚁
-	for a in player_ants:
-		if is_instance_valid(a):
-			a.queue_free()
-	player_ants.clear()
-
-	for r in resources:
-		if is_instance_valid(r):
-			r.queue_free()
-	resources.clear()
-
-	for obstacle in obstacles:
-		if is_instance_valid(obstacle):
-			obstacle.queue_free()
-	obstacles.clear()
+	_clear_battle_runtime_nodes()
 
 	# 生成玩家携带的蚂蚁
 	spawn_player_ants(ant_count)
@@ -1415,6 +1473,9 @@ func update_ui() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_tree().quit()
+	if not game_running:
+		_reset_battle_controls()
+		return
 	# 记录玩家输入用于回放
 	if game_running and event is InputEventKey and event.pressed:
 		var input_data = {
@@ -1801,19 +1862,27 @@ func handle_touch_input(event: InputEvent) -> void:
 
 ### 开始撤离（触控按钮触发）
 func start_extraction() -> void:
+	if not game_running:
+		return
 	if extraction_point and not has_extraction_started:
 		extraction_point.start_extraction()
 
 ### 获取虚拟摇杆输入（供Player调用）
 func get_joystick_input() -> Vector2:
+	if not game_running:
+		return Vector2.ZERO
 	return joystick_input
 
 ### 获取攻击按钮状态
 func is_attack_button_down() -> bool:
+	if not game_running:
+		return false
 	return attack_button_down
 
 ### 获取冲刺按钮状态
 func is_dash_button_down() -> bool:
+	if not game_running:
+		return false
 	return dash_button_down
 
 ## ==================== 天气系统 - 洞穴氛围效果 ====================

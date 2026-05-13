@@ -1210,10 +1210,10 @@ func _is_transition_layer_ready() -> bool:
 		and ant_container != null and is_instance_valid(ant_container)
 
 func _apply_return_to_base_results() -> void:
-	battle_scene.visible = false
-	base_camp.visible = true
 	var main = battle_scene as Node2D
 	if main:
+		if main.has_method("prepare_for_base_return"):
+			main.prepare_for_base_return()
 		var collected = main.get_collected_resources()
 		var return_rate = calculate_return_rate()
 		for type in collected:
@@ -1228,6 +1228,8 @@ func _apply_return_to_base_results() -> void:
 			print("GameManager: 撤离被中断! 返还率: ", return_rate * 100, "%")
 		else:
 			complete_extraction(false)
+	battle_scene.visible = false
+	base_camp.visible = true
 	save_game()
 
 ## 执行返回基地的过渡效果
