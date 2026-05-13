@@ -169,7 +169,8 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	# 确保摄像机跟随玩家
 	if camera and is_instance_valid(camera) and player and is_instance_valid(player):
-		camera.global_position = player.global_position
+		if camera.get_parent() == player:
+			camera.position = Vector2.ZERO
 		camera.make_current()
 	else:
 		print("Main: _process - camera=", camera, " player=", player)
@@ -742,14 +743,15 @@ func clear_tutorial_arrow() -> void:
 	tutorial_arrow = null
 
 func setup_camera() -> void:
-	# 摄像机现在在 player.tscn 中设置，limit 需要在这里配置
 	print("Main: setup_camera called, camera=", camera)
 	if camera and is_instance_valid(camera):
-		camera.limit_left = 0
-		camera.limit_top = 0
-		camera.limit_right = 1080
-		camera.limit_bottom = 1920
+		camera.position = Vector2.ZERO
+		camera.limit_left = -100000
+		camera.limit_top = -100000
+		camera.limit_right = 100000
+		camera.limit_bottom = 100000
 		camera.make_current()
+		camera.reset_smoothing()
 		print("Main: setup_camera done, camera.is_current=", camera.is_current())
 	else:
 		print("Main: setup_camera ERROR - camera is null!")
@@ -789,11 +791,13 @@ func spawn_player_ants(ant_count: Dictionary) -> void:
 			ant.atk_range = stats["atk_range"]
 			ant.atk_cool = stats["atk_cool"]
 
-			# 在玩家周围随机位置生成
-			var offset = Vector2(randf_range(-80, 80), randf_range(-80, 80))
+			# 在玩家后方生成，避免开局挡住操作角色
+			var offset = Vector2(randf_range(-90, 90), randf_range(80, 150))
 			ant.global_position = player.global_position + offset
 
 			add_child(ant)
+			ant.add_collision_exception_with(player)
+			player.add_collision_exception_with(ant)
 			player_ants.append(ant)
 			ant.tree_exited.connect(_on_ant_died.bind(ant))
 
@@ -1234,9 +1238,10 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 
 	# 重置摄像机位置紧跟在玩家位置之后
 	if camera and is_instance_valid(camera):
-		camera.global_position = player.global_position
+		camera.position = Vector2.ZERO
 		camera.make_current()
-		print("Main: camera reset to player position: ", camera.global_position)
+		camera.reset_smoothing()
+		print("Main: camera reset to player position: ", player.global_position)
 
 	for e in enemies:
 		if is_instance_valid(e):
