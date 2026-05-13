@@ -1184,6 +1184,11 @@ func _on_enter_battle() -> void:
 func return_to_base(was_interrupted: bool = false) -> void:
 	print("GameManager: return_to_base called, interrupted=", was_interrupted)
 	game_was_interrupted = was_interrupted
+	if is_transitioning:
+		print("GameManager: 过渡状态繁忙，直接返回基地")
+		is_transitioning = false
+		_apply_return_to_base_results()
+		return
 	if _ensure_transition_layer():
 		# 先执行过渡效果，完成后再切换场景
 		execute_transition_to_base()

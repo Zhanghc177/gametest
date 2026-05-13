@@ -88,6 +88,7 @@ var kill_count: int = 0  # 击杀数
 var survival_time: float = 0.0  # 存活时间（秒）
 var battle_start_time: float = 0.0  # 战斗开始时间
 var settlement_panel: Panel = null  # 结算界面面板
+var _returning_to_base: bool = false
 
 ## 战斗回放系统变量
 var input_recording: Array[Dictionary] = []  # 当前战斗的输入记录
@@ -987,6 +988,8 @@ func _on_extraction_progress(progress: float) -> void:
 	update_ui()
 
 func _on_extraction_completed() -> void:
+	if not game_running:
+		return
 	print("Main: extraction completed!")
 	# 教程撤离判定：如果教程步骤为4，标记撤离完成
 	if tutorial_step == 4:
@@ -1022,6 +1025,9 @@ func extraction_success() -> void:
 	save_battle_replay()  # 保存回放
 	await get_tree().create_timer(1.0).timeout
 	show_settlement(true, true)  # true=胜利, true=撤离成功
+	await get_tree().create_timer(1.0).timeout
+	if not _returning_to_base:
+		return_to_base()
 
 ## 创建结算界面
 func show_settlement(is_victory: bool, is_extraction: bool = false) -> void:
@@ -1113,11 +1119,13 @@ func show_settlement(is_victory: bool, is_extraction: bool = false) -> void:
 	settlement_panel.add_child(return_btn)
 
 func _on_return_button_pressed() -> void:
+	return_to_base()
+
+func _clear_settlement_panel() -> void:
 	# 移除结算面板
 	if settlement_panel and is_instance_valid(settlement_panel):
 		settlement_panel.queue_free()
 		settlement_panel = null
-	return_to_base()
 
 ## 撤离成功金色粒子庆祝效果
 func spawn_extraction_celebration() -> void:
@@ -1192,11 +1200,15 @@ func spawn_extraction_celebration() -> void:
 		star_tween.chain().tween_callback(star.queue_free)
 
 func return_to_base() -> void:
+	if _returning_to_base:
+		return
 	print("Main: return_to_base called!")
 	if not _game_manager_cache:
 		_game_manager_cache = get_tree().get_first_node_in_group("game_manager")
 		print("Main: got game_manager cache:", _game_manager_cache)
 	if _game_manager_cache:
+		_returning_to_base = true
+		_clear_settlement_panel()
 		_game_manager_cache.return_to_base()
 	else:
 		print("Main: ERROR - no game_manager found!")
@@ -1204,6 +1216,7 @@ func return_to_base() -> void:
 func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}) -> void:
 	print("Main: start_battle called, visible=", visible)
 	game_running = true
+	_returning_to_base = false
 	inventory = initial_inventory.duplicate()
 	# 确保 inventory 有必要的键
 	if not inventory.has("beetle_remains"):
