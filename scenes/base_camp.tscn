@@ -1,0 +1,241 @@
+[gd_scene load_steps=2 format=3 uid="uid://base_camp"]
+
+[ext_resource type="Script" path="res://scripts/base_camp.gd" id="1_base"]
+
+[node name="BaseCamp" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_base")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+color = Color(0.102, 0.102, 0.18, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "蚁巢基地"
+horizontal_alignment = 1
+
+[node name="NestLevelLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "Lv.1 初始蚁巢"
+horizontal_alignment = 1
+
+[node name="Spacing1" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="AntCountLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "工蚁: 5  兵蚁: 2"
+horizontal_alignment = 1
+
+[node name="FoodLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "食物: 100"
+horizontal_alignment = 1
+
+[node name="BeetleLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "甲虫残骸: 0"
+horizontal_alignment = 1
+
+[node name="LocustLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "蝗虫残骸: 0"
+horizontal_alignment = 1
+
+[node name="SpiderLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "蜘蛛残骸: 0"
+horizontal_alignment = 1
+
+[node name="MantisLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "螳螂残骸: 0"
+horizontal_alignment = 1
+
+[node name="Spacing2" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="ProductionLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "生产队列:"
+horizontal_alignment = 1
+
+[node name="Spacing3" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="ButtonsHBox" type="HBoxContainer" parent="CenterContainer/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="WorkerBtn" type="Button" parent="CenterContainer/VBox/ButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "工蚁 20食物"
+
+[node name="Spacer2" type="Control" parent="CenterContainer/VBox/ButtonsHBox"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+
+[node name="SoldierBtn" type="Button" parent="CenterContainer/VBox/ButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "兵蚁 40食物"
+
+[node name="SpacerSoldier" type="Control" parent="CenterContainer/VBox/ButtonsHBox"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+
+[node name="ShooterBtn" type="Button" parent="CenterContainer/VBox/ButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "射手蚁 60食物"
+
+[node name="Spacer3" type="Control" parent="CenterContainer/VBox/ButtonsHBox"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+
+[node name="BomberBtn" type="Button" parent="CenterContainer/VBox/ButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "爆炸蚁 80食物"
+
+[node name="Spacer4" type="Control" parent="CenterContainer/VBox/ButtonsHBox"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+
+[node name="FlyerBtn" type="Button" parent="CenterContainer/VBox/ButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "飞蚁 100食物"
+
+[node name="Spacing4" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+
+[node name="EnterBattleBtn" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "进入战场"
+
+[node name="Spacing5" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="ShopBtn" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "商店"
+
+[node name="UpgradeNestBtn" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "升级蚁巢"
+
+[node name="SpacingSettings" type="Control" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="SettingsBtn" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "设置"
+
+[node name="ReturnMenuBtn" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "返回主菜单"
+
+[node name="MailBtn" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "邮件"
+
+[node name="QueenStatusPanel" type="PanelContainer" parent="."]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -100.0
+offset_right = 200.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="QueenVBox" type="VBoxContainer" parent="QueenStatusPanel"]
+layout_mode = 2
+
+[node name="QueenTitle" type="Label" parent="QueenStatusPanel/QueenVBox"]
+layout_mode = 2
+text = "蚁后状态"
+horizontal_alignment = 1
+
+[node name="QueenHealthBar" type="ProgressBar" parent="QueenStatusPanel/QueenVBox"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="QueenLabel" type="Label" parent="QueenStatusPanel/QueenVBox"]
+layout_mode = 2
+text = "健康"
+horizontal_alignment = 1
+
+[node name="ProductionProgressPanel" type="PanelContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -220.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 120.0
+grow_horizontal = 0
+
+[node name="ProductionVBox" type="VBoxContainer" parent="ProductionProgressPanel"]
+layout_mode = 2
+
+[node name="ProductionTitle" type="Label" parent="ProductionProgressPanel/ProductionVBox"]
+layout_mode = 2
+text = "生产队列"
+horizontal_alignment = 1
+
+[node name="ProductionProgress1" type="ProgressBar" parent="ProductionProgressPanel/ProductionVBox"]
+layout_mode = 2
+max_value = 100.0
+value = 0.0
+show_percentage = false
+
+[node name="ProductionProgress2" type="ProgressBar" parent="ProductionProgressPanel/ProductionVBox"]
+layout_mode = 2
+max_value = 100.0
+value = 0.0
+show_percentage = false
+
+[node name="ProductionProgress3" type="ProgressBar" parent="ProductionProgressPanel/ProductionVBox"]
+layout_mode = 2
+max_value = 100.0
+value = 0.0
+show_percentage = false

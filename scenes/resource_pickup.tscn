@@ -1,0 +1,27 @@
+[gd_scene load_steps=2 format=3 uid="uid://resource_pickup"]
+
+[ext_resource type="Script" path="res://scripts/resource_pickup.gd" id="1_resource"]
+
+[node name="ResourcePickup" type="Area2D"]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("1_resource")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[node name="BobTimer" type="Timer" parent="."]
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Icon" type="Polygon2D" parent="Visual"]
+polygon = PackedVector2Array(-10, -10, 0, -15, 10, -10, 10, 10, 0, 15, -10, 10)
+color = Color(0.976, 0.455, 0.086, 0.9)
+
+[node name="Glow" type="ColorRect" parent="Visual"]
+offset_left = -18.0
+offset_top = -18.0
+offset_right = 18.0
+offset_bottom = 18.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.976, 0.455, 0.086, 0.3)

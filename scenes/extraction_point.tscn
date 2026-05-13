@@ -1,0 +1,40 @@
+[gd_scene load_steps=2 format=3 uid="uid://extraction_point"]
+
+[ext_resource type="Script" path="res://scripts/extraction_point.gd" id="1_extraction"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_extract"]
+radius = 55.0
+
+[node name="ExtractionPoint" type="Area2D"]
+monitoring = true
+collision_mask = 1
+script = ExtResource("1_extraction")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_extract")
+
+[node name="Timer" type="Timer" parent="."]
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Radius" type="ColorRect" parent="Visual"]
+offset_left = -70.0
+offset_top = -70.0
+offset_right = 70.0
+offset_bottom = 70.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.976, 0.455, 0.086, 0.25)
+
+[node name="Diamond" type="Polygon2D" parent="Visual"]
+polygon = PackedVector2Array(0, -35, 30, 0, 0, 35, -30, 0)
+color = Color(0.976, 0.455, 0.086, 0.9)
+
+[node name="Label" type="Label" parent="Visual"]
+offset_left = -40.0
+offset_top = 40.0
+offset_right = 40.0
+offset_bottom = 60.0
+grow_horizontal = 2
+text = "撤离"
+horizontal_alignment = 1

@@ -1,0 +1,32 @@
+# Godot editor and import cache
+.godot/
+.import/
+*.import-*
+*.translation
+
+# Local assistant/tooling state
+.claude/
+
+# Build outputs and exported packages
+exports/
+build/
+dist/
+*.pck
+*.zip
+*.apk
+*.aab
+*.exe
+*.dmg
+
+# Logs and local validation output
+*.log
+headless_output.txt
+headless_error.txt
+validation_results.txt
+val.txt
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak

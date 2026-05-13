@@ -1,0 +1,236 @@
+[gd_scene load_steps=4 format=3 uid="uid://main_scene"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/extraction_point.tscn" id="3_extraction"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(540, 1500)
+
+[node name="ExtractionPoint" parent="." instance=ExtResource("3_extraction")]
+position = Vector2(950, 230)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="ResourceDisplay" type="PanelContainer" parent="CanvasLayer"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -140.0
+offset_top = 10.0
+offset_right = -20.0
+offset_bottom = 70.0
+grow_horizontal = 0
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/ResourceDisplay"]
+offset_right = 120.0
+offset_bottom = 60.0
+
+[node name="Label" type="Label" parent="CanvasLayer/ResourceDisplay/VBox"]
+offset_right = 120.0
+offset_bottom = 20.0
+text = "物资"
+horizontal_alignment = 1
+
+[node name="ResourceLabel" type="Label" parent="CanvasLayer/ResourceDisplay/VBox"]
+offset_top = 24.0
+offset_right = 120.0
+offset_bottom = 44.0
+text = "x 0"
+horizontal_alignment = 1
+
+[node name="BuffLabel" type="Label" parent="CanvasLayer"]
+visible = false
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -140.0
+offset_top = 75.0
+offset_right = -20.0
+offset_bottom = 95.0
+grow_horizontal = 0
+text = ""
+horizontal_alignment = 1
+
+[node name="ExtractProgress" type="Label" parent="CanvasLayer"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -80.0
+offset_top = -100.0
+offset_right = 80.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "撤离中: 0%"
+horizontal_alignment = 1
+visible = false
+
+[node name="EnemyCountLabel" type="Label" parent="CanvasLayer"]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_top = 10.0
+offset_right = -200.0
+offset_bottom = 40.0
+grow_horizontal = 2
+text = "敌人: 3"
+horizontal_alignment = 1
+
+[node name="HealthBar" type="ProgressBar" parent="CanvasLayer"]
+visible = false
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -60.0
+offset_right = 200.0
+offset_bottom = -30.0
+grow_horizontal = 0
+grow_vertical = 0
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="HealthLabel" type="Label" parent="CanvasLayer/HealthBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "生命: 100/100"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BossHealthBar" type="ProgressBar" parent="CanvasLayer"]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 50.0
+offset_right = 200.0
+offset_bottom = 75.0
+grow_horizontal = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="BossNameLabel" type="Label" parent="CanvasLayer"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 20.0
+offset_right = 200.0
+offset_bottom = 48.0
+grow_horizontal = 2
+text = "蜂后"
+horizontal_alignment = 1
+visible = false
+
+[node name="BossPhaseLabel" type="Label" parent="CanvasLayer"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 78.0
+offset_right = 200.0
+offset_bottom = 98.0
+grow_horizontal = 2
+text = "阶段 1"
+horizontal_alignment = 1
+visible = false
+
+[node name="TouchControls" type="CanvasLayer" parent="."]
+visible = false
+
+[node name="JoystickArea" type="Area2D" parent="TouchControls"]
+anchors_preset = 3
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = -280.0
+offset_right = 280.0
+offset_bottom = -40.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="JoystickBase" type="Polygon2D" parent="TouchControls/JoystickArea"]
+position = Vector2(120, 120)
+
+[node name="JoystickThumb" type="Polygon2D" parent="TouchControls/JoystickArea"]
+position = Vector2(120, 120)
+
+[node name="DashButton" type="Button" parent="TouchControls"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -240.0
+offset_top = -180.0
+offset_right = -120.0
+offset_bottom = -80.0
+grow_horizontal = 0
+text = "冲刺"
+
+[node name="AttackButton" type="Button" parent="TouchControls"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -130.0
+offset_top = -180.0
+offset_right = -30.0
+offset_bottom = -80.0
+grow_horizontal = 0
+text = "攻击"
+
+[node name="ExtractButton" type="Button" parent="TouchControls"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -60.0
+offset_top = 40.0
+offset_right = 60.0
+offset_bottom = 100.0
+grow_horizontal = 2
+text = "撤离"
+
+[node name="Minimap" type="PanelContainer" parent="CanvasLayer"]
+visible = false
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -150.0
+offset_top = 120.0
+offset_right = -20.0
+offset_bottom = 250.0
+grow_horizontal = 0
+tooltip_text = "小地图"
+
+[node name="MinimapBG" type="Panel" parent="CanvasLayer/Minimap"]
+layout_mode = 2
+color = Color(0.1, 0.1, 0.15, 0.8)
+
+[node name="MinimapContainer" type="Control" parent="CanvasLayer/Minimap"]
+layout_mode = 2
+custom_minimum_size = Vector2(130, 130)
+
+[node name="PlayerDot" type="Polygon2D" parent="CanvasLayer/Minimap/MinimapContainer"]
+position = Vector2(65, 65)
+
+[node name="ExtractionDot" type="Polygon2D" parent="CanvasLayer/Minimap/MinimapContainer"]
+position = Vector2(65, 65)
+
+[node name="EnemyDots" type="Node2D" parent="CanvasLayer/Minimap/MinimapContainer"]
+
+[node name="MinimapBorder" type="Polygon2D" parent="CanvasLayer/Minimap"]
+layout_mode = 2

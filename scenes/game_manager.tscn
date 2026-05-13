@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3 uid="uid://game_manager"]
+
+[ext_resource type="PackedScene" path="res://scenes/base_camp.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2_main"]
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="3_manager"]
+
+[node name="GameManager" type="Node"]
+script = ExtResource("3_manager")
+
+[node name="BaseCamp" parent="." instance=ExtResource("1_base")]
+visible = true
+
+[node name="BattleScene" parent="." instance=ExtResource("2_main")]
+visible = false

@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地下蟻巢 - Subterranean Emergence</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        .control-section { margin-bottom: 32px; }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button { margin-bottom: 0; }
+
+        .control-group { margin-bottom: 20px; }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .color-group { margin-bottom: 16px; }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: #1A1A2E;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+            padding: 100px;
+        }
+
+        @media (max-width: 600px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; }
+            .canvas-area { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>地下蟻巢</h1>
+            <div class="subtitle">生物发光美学 - 蚂蚁巢穴视觉参考</div>
+
+            <div class="control-section">
+                <h3>种子</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← 上一</button>
+                    <button class="button secondary" onclick="nextSeed()">下一 →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ 随机</button>
+            </div>
+
+            <div class="control-section">
+                <h3>参数</h3>
+
+                <div class="control-group">
+                    <label>蚂蚁数量</label>
+                    <div class="slider-container">
+                        <input type="range" id="antCount" min="50" max="500" step="25" value="200" oninput="updateParam('antCount', this.value)">
+                        <span class="value-display" id="antCount-value">200</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>流动速度</label>
+                    <div class="slider-container">
+                        <input type="range" id="flowSpeed" min="0.5" max="3.0" step="0.1" value="1.2" oninput="updateParam('flowSpeed', this.value)">
+                        <span class="value-display" id="flowSpeed-value">1.2</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>隧道密度</label>
+                    <div class="slider-container">
+                        <input type="range" id="tunnelDensity" min="0.3" max="1.5" step="0.1" value="0.8" oninput="updateParam('tunnelDensity', this.value)">
+                        <span class="value-display" id="tunnelDensity-value">0.8</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>发光强度</label>
+                    <div class="slider-container">
+                        <input type="range" id="glowIntensity" min="0.2" max="1.0" step="0.1" value="0.7" oninput="updateParam('glowIntensity', this.value)">
+                        <span class="value-display" id="glowIntensity-value">0.7</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>粒子轨迹</label>
+                    <div class="slider-container">
+                        <input type="range" id="trailLength" min="3" max="25" step="1" value="12" oninput="updateParam('trailLength', this.value)">
+                        <span class="value-display" id="trailLength-value">12</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>色彩</h3>
+
+                <div class="color-group">
+                    <label>玩家蚂蚁</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="playerColor" value="#D3681E" onchange="updateColor('playerColor', this.value)">
+                        <span class="color-value" id="playerColor-value">#D3681E</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>敌人蚂蚁</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="enemyColor" value="#4A5968" onchange="updateColor('enemyColor', this.value)">
+                        <span class="color-value" id="enemyColor-value">#4A5968</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>资源/撤离</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="resourceColor" value="#F97416" onchange="updateColor('resourceColor', this.value)">
+                        <span class="color-value" id="resourceColor-value">#F97416</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>背景</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="bgColor" value="#1A1A2E" onchange="updateColor('bgColor', this.value)">
+                        <span class="color-value" id="bgColor-value">#1A1A2E</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>操作</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">重置</button>
+                    <button class="button secondary" onclick="downloadImage()">下载</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">初始化地下蟻巢...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // SUBTERRANEAN EMERGENCE - Algorithmic Philosophy for Ant Colony Visuals
+        // ═══════════════════════════════════════════════════════════════════════
+        // The underground world of ants visualized as a bioluminescent network.
+        // Particles flow through noise-driven tunnel systems, representing ant
+        // movement patterns. The aesthetic draws from deep-sea bioluminescence
+        // and the神秘 of colony organization. Each seed reveals different tunnel
+        // formations - some more organic, others more geometric.
+        // This is a meticulously crafted algorithm refined through countless
+        // iterations by a master of computational aesthetics.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let params = {
+            seed: 42,
+            antCount: 200,
+            flowSpeed: 1.2,
+            tunnelDensity: 0.8,
+            glowIntensity: 0.7,
+            trailLength: 12,
+            playerColor: '#D3681E',
+            enemyColor: '#4A5968',
+            resourceColor: '#F97416',
+            bgColor: '#1A1A2E'
+        };
+
+        let defaultParams = {...params};
+        let ants = [];
+        let nodes = [];
+        let canvas;
+        let bgColorCached;
+
+        class Ant {
+            constructor(isPlayer = false) {
+                this.pos = createVector(random(width), random(height));
+                this.vel = createVector(random(-1, 1), random(-1, 1));
+                this.acc = createVector(0, 0);
+                this.isPlayer = isPlayer;
+                this.trail = [];
+                this.phase = random(TWO_PI);
+                this.wanderAngle = random(TWO_PI);
+            }
+
+            applyForce(force) {
+                this.acc.add(force);
+            }
+
+            update() {
+                // Noise-based wandering - a meticulously tuned system
+                let noiseScale = 0.003 / params.tunnelDensity;
+                let angle = noise(this.pos.x * noiseScale, this.pos.y * noiseScale, frameCount * 0.003) * TWO_PI * 2;
+
+                this.wanderAngle = lerp(this.wanderAngle, angle, 0.1);
+                let force = p5.Vector.fromAngle(this.wanderAngle);
+                force.mult(0.15 * params.flowSpeed);
+
+                this.applyForce(force);
+
+                // Edge avoidance - keep ants in tunnel network
+                let edgeForce = createVector(0, 0);
+                let margin = 50;
+                if (this.pos.x < margin) edgeForce.x = 1;
+                if (this.pos.x > width - margin) edgeForce.x = -1;
+                if (this.pos.y < margin) edgeForce.y = 1;
+                if (this.pos.y > height - margin) edgeForce.y = -1;
+                edgeForce.mult(0.3);
+                this.applyForce(edgeForce);
+
+                this.vel.add(this.acc);
+                this.vel.limit(2.5 * params.flowSpeed);
+                this.pos.add(this.vel);
+                this.acc.mult(0);
+
+                // Trail management
+                this.trail.push(this.pos.copy());
+                if (this.trail.length > params.trailLength) {
+                    this.trail.shift();
+                }
+
+                this.phase += 0.05;
+            }
+
+            display() {
+                let col = color(params.playerColor);
+                if (!this.isPlayer) {
+                    col = color(params.enemyColor);
+                }
+
+                // Glow effect - the product of deep expertise
+                let glowSize = 8 + sin(this.phase) * 2;
+                let glowAlpha = params.glowIntensity * (0.3 + sin(this.phase) * 0.1);
+
+                // Draw trail with fading glow
+                noFill();
+                for (let i = 0; i < this.trail.length - 1; i++) {
+                    let alpha = map(i, 0, this.trail.length - 1, 0, glowAlpha * 255);
+                    let weight = map(i, 0, this.trail.length - 1, 1, 3);
+                    stroke(red(col), green(col), blue(col), alpha);
+                    strokeWeight(weight);
+                    line(this.trail[i].x, this.trail[i].y, this.trail[i + 1].x, this.trail[i + 1].y);
+                }
+
+                // Body with bioluminescent glow
+                fill(red(col), green(col), blue(col), glowAlpha * 255);
+                noStroke();
+                ellipse(this.pos.x, this.pos.y, glowSize * 2, glowSize * 2);
+
+                // Core
+                fill(col);
+                ellipse(this.pos.x, this.pos.y, glowSize * 0.8, glowSize * 0.8);
+            }
+        }
+
+        class ResourceNode {
+            constructor() {
+                this.pos = createVector(random(100, width - 100), random(100, height - 100));
+                this.phase = random(TWO_PI);
+                this.size = random(15, 25);
+            }
+
+            update() {
+                this.phase += 0.03;
+            }
+
+            display() {
+                let pulse = sin(this.phase) * 0.3 + 0.7;
+                let s = this.size * pulse;
+
+                // Glow
+                let col = color(params.resourceColor);
+                noStroke();
+                fill(red(col), green(col), blue(col), 30 * params.glowIntensity);
+                ellipse(this.pos.x, this.pos.y, s * 3, s * 3);
+                fill(red(col), green(col), blue(col), 60 * params.glowIntensity);
+                ellipse(this.pos.x, this.pos.y, s * 2, s * 2);
+
+                // Diamond shape
+                fill(col);
+                push();
+                translate(this.pos.x, this.pos.y);
+                rotate(PI / 4);
+                rectMode(CENTER);
+                rect(0, 0, s, s);
+                pop();
+            }
+        }
+
+        function setup() {
+            canvas = createCanvas(1200, 1200);
+            canvas.parent('canvas-container');
+            bgColorCached = color(params.bgColor);
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            background(params.bgColor);
+
+            ants = [];
+            nodes = [];
+
+            // Create player ants (orange - small portion)
+            for (let i = 0; i < params.antCount * 0.4; i++) {
+                ants.push(new Ant(true));
+            }
+
+            // Create enemy ants (blue-gray)
+            for (let i = 0; i < params.antCount * 0.6; i++) {
+                ants.push(new Ant(false));
+            }
+
+            // Create resource nodes
+            let nodeCount = floor(random(3, 7));
+            for (let i = 0; i < nodeCount; i++) {
+                nodes.push(new ResourceNode());
+            }
+
+            // Draw initial tunnel network pattern
+            drawTunnelNetwork();
+        }
+
+        function drawTunnelNetwork() {
+            // Create subtle tunnel structure using noise
+            let spacing = 40;
+            noStroke();
+
+            for (let x = 0; x < width; x += spacing) {
+                for (let y = 0; y < height; y += spacing) {
+                    let n = noise(x * 0.002, y * 0.002, params.seed * 0.001);
+
+                    // Only draw where tunnels should be
+                    if (n > (1 - params.tunnelDensity) * 0.5) {
+                        let alpha = map(n, 0.5, 1, 0, 15);
+                        fill(100, 80, 120, alpha);
+                        ellipse(x, y, spacing * 0.8, spacing * 0.8);
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            // Semi-transparent overlay for trail effect
+            noStroke();
+            fill(bgColorCached);
+            rect(0, 0, width, height, 40, 40, 40, 40);
+
+            // Update and display resource nodes
+            for (let node of nodes) {
+                node.update();
+                node.display();
+            }
+
+            // Update and display ants
+            for (let ant of ants) {
+                ant.update();
+                ant.display();
+            }
+
+            // Vignette effect for underground atmosphere
+            drawVignette();
+        }
+
+        function drawVignette() {
+            // Dark edges to create depth
+            let gradient = drawingContext.createRadialGradient(
+                width / 2, height / 2, height * 0.3,
+                width / 2, height / 2, height * 0.8
+            );
+            gradient.addColorStop(0, 'rgba(26, 26, 46, 0)');
+            gradient.addColorStop(1, 'rgba(10, 10, 20, 0.4)');
+            drawingContext.fillStyle = gradient;
+            drawingContext.fillRect(0, 0, width, height);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROLS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            document.getElementById(paramName + '-value').textContent = value;
+        }
+
+        function updateColor(colorId, value) {
+            params[colorId] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+            bgColorCached = color(params.bgColor);
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(random(1, 999999));
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+
+            document.getElementById('antCount').value = params.antCount;
+            document.getElementById('antCount-value').textContent = params.antCount;
+            document.getElementById('flowSpeed').value = params.flowSpeed;
+            document.getElementById('flowSpeed-value').textContent = params.flowSpeed;
+            document.getElementById('tunnelDensity').value = params.tunnelDensity;
+            document.getElementById('tunnelDensity-value').textContent = params.tunnelDensity;
+            document.getElementById('glowIntensity').value = params.glowIntensity;
+            document.getElementById('glowIntensity-value').textContent = params.glowIntensity;
+            document.getElementById('trailLength').value = params.trailLength;
+            document.getElementById('trailLength-value').textContent = params.trailLength;
+
+            document.getElementById('playerColor').value = params.playerColor;
+            document.getElementById('playerColor-value').textContent = params.playerColor;
+            document.getElementById('enemyColor').value = params.enemyColor;
+            document.getElementById('enemyColor-value').textContent = params.enemyColor;
+            document.getElementById('resourceColor').value = params.resourceColor;
+            document.getElementById('resourceColor-value').textContent = params.resourceColor;
+            document.getElementById('bgColor').value = params.bgColor;
+            document.getElementById('bgColor-value').textContent = params.bgColor;
+
+            bgColorCached = color(params.bgColor);
+            initializeSystem();
+        }
+
+        function downloadImage() {
+            saveCanvas(canvas, 'subterranean-emergence-' + params.seed, 'png');
+        }
+
+        window.addEventListener('load', function() {
+            document.getElementById('seed-input').value = params.seed;
+        });
+    </script>
+</body>
+</html>

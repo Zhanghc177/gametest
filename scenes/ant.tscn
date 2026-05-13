@@ -1,0 +1,43 @@
+[gd_scene load_steps=3 format=3 uid="uid://ant_scene"]
+
+[ext_resource type="Script" path="res://scripts/ant.gd" id="1_ant"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ant"]
+radius = 15.0
+
+[node name="Ant" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 7
+script = ExtResource("1_ant")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_ant")
+
+[node name="AntBody" type="Node2D" parent="."]
+
+[node name="Head" type="ColorRect" parent="AntBody"]
+offset_left = -6.0
+offset_top = -20.0
+offset_right = 6.0
+offset_bottom = -8.0
+
+[node name="Body" type="ColorRect" parent="AntBody"]
+offset_left = -7.0
+offset_top = -8.0
+offset_right = 7.0
+offset_bottom = 8.0
+
+[node name="Abdomen" type="ColorRect" parent="AntBody"]
+offset_left = -5.0
+offset_top = 8.0
+offset_right = 5.0
+offset_bottom = 20.0
+
+[node name="HealthBar" type="ProgressBar" parent="."]
+offset_left = -15.0
+offset_top = -35.0
+offset_right = 15.0
+offset_bottom = -25.0
+max_value = 100.0
+value = 100.0
+show_percentage = false
