@@ -37,8 +37,11 @@ func reset_extraction() -> void:
 		timer.start()
 
 func start_extraction() -> void:
+	if not _can_extract():
+		return
+
 	var player = get_tree().get_first_node_in_group("player")
-	if not player:
+	if not player or not player.visible:
 		return
 
 	var dist = global_position.distance_to(player.global_position)
@@ -54,8 +57,19 @@ func start_extraction() -> void:
 	_on_timer_timeout()
 
 func _on_timer_timeout() -> void:
+	if not _can_extract():
+		if is_player_in_range or extract_progress > 0.0:
+			is_player_in_range = false
+			extract_progress = 0.0
+			extraction_progress.emit(0.0)
+		return
+
 	var player = get_tree().get_first_node_in_group("player")
-	if not player:
+	if not player or not player.visible:
+		if is_player_in_range or extract_progress > 0.0:
+			is_player_in_range = false
+			extract_progress = 0.0
+			extraction_progress.emit(0.0)
 		return
 
 	var dist = global_position.distance_to(player.global_position)
@@ -85,3 +99,9 @@ func _on_timer_timeout() -> void:
 
 			extraction_completed.emit()
 			timer.stop()
+
+func _can_extract() -> bool:
+	var main = get_tree().get_first_node_in_group("main")
+	if main and (main.get("game_running") == false or main.get("_last_battle_failed") == true):
+		return false
+	return true

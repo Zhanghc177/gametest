@@ -282,7 +282,7 @@ func perform_attack() -> void:
 	hide_warn_fan()
 
 	var player = get_tree().get_first_node_in_group("player")
-	if player and global_position.distance_to(player.global_position) < ATK_RANGE + 24:
+	if player and is_target_in_attack_indicator(player.global_position, ATK_RANGE + 24, PI / 3):
 		player.take_damage(ATK)
 		# Apply web slow effect
 		if player.has_method("apply_web_slow"):
@@ -292,6 +292,13 @@ func perform_attack() -> void:
 
 func spawn_attack_effect() -> void:
 	pass
+
+func is_target_in_attack_indicator(target_pos: Vector2, range_value: float, fan_angle: float) -> bool:
+	var to_target = target_pos - global_position
+	if to_target.length() > range_value:
+		return false
+	var angle_diff = abs(wrapf(to_target.angle() - attack_direction, -PI, PI))
+	return angle_diff <= fan_angle / 2.0
 
 func show_warn_fan() -> void:
 	hide_warn_fan()

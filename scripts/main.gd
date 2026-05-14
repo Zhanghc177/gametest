@@ -1015,20 +1015,20 @@ func _on_resource_picked_up(resource: Area2D, res_type: String = "beetle_remains
 	update_ui()
 
 func _on_extraction_started() -> void:
-	if not game_running:
+	if not game_running or _last_battle_failed:
 		return
 	print("Main: extraction started!")
 	has_extraction_started = true
 	extraction_progress = 0.0
 
 func _on_extraction_progress(progress: float) -> void:
-	if not game_running:
+	if not game_running or _last_battle_failed:
 		return
 	extraction_progress = progress
 	update_ui()
 
 func _on_extraction_completed() -> void:
-	if not game_running:
+	if not game_running or _last_battle_failed:
 		return
 	print("Main: extraction completed!")
 	# 教程撤离判定：如果教程步骤为4，标记撤离完成
@@ -1921,7 +1921,7 @@ func handle_touch_input(event: InputEvent) -> void:
 
 ### 开始撤离（触控按钮触发）
 func start_extraction() -> void:
-	if not game_running:
+	if not game_running or _last_battle_failed:
 		return
 	if extraction_point and not has_extraction_started:
 		extraction_point.start_extraction()
