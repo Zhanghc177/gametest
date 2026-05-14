@@ -178,6 +178,8 @@ func _ready() -> void:
 	print("Main: _ready 完成")
 
 func _process(_delta: float) -> void:
+	if not visible or not game_running:
+		return
 	# 确保摄像机跟随玩家
 	if camera and is_instance_valid(camera) and player and is_instance_valid(player):
 		if camera.get_parent() == player:
@@ -1200,6 +1202,21 @@ func _reset_battle_controls() -> void:
 		if player.has_node("AttackFan"):
 			player.get_node("AttackFan").visible = false
 
+func disable_battle_camera() -> void:
+	if camera and is_instance_valid(camera):
+		if camera.has_method("clear_current"):
+			camera.clear_current()
+		camera.enabled = false
+	get_viewport().canvas_transform = Transform2D.IDENTITY
+
+func enable_battle_camera() -> void:
+	get_viewport().canvas_transform = Transform2D.IDENTITY
+	if camera and is_instance_valid(camera):
+		camera.enabled = true
+		camera.position = Vector2.ZERO
+		camera.make_current()
+		camera.reset_smoothing()
+
 func _clear_battle_runtime_nodes() -> void:
 	for e in enemies:
 		if is_instance_valid(e):
@@ -1240,6 +1257,7 @@ func prepare_for_base_return() -> void:
 	extraction_progress = 0.0
 	_returning_to_base = true
 	_reset_battle_controls()
+	disable_battle_camera()
 	if extraction_point and extraction_point.has_method("reset_extraction"):
 		extraction_point.reset_extraction()
 	_clear_battle_runtime_nodes()
@@ -1382,11 +1400,8 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 	player.health_bar.value = player.HP_MAX
 
 	# 重置摄像机位置紧跟在玩家位置之后
-	if camera and is_instance_valid(camera):
-		camera.position = Vector2.ZERO
-		camera.make_current()
-		camera.reset_smoothing()
-		print("Main: camera reset to player position: ", player.global_position)
+	enable_battle_camera()
+	print("Main: camera reset to player position: ", player.global_position)
 
 	_clear_battle_runtime_nodes()
 

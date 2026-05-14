@@ -1233,6 +1233,10 @@ func _apply_return_to_base_results() -> void:
 	save_game()
 
 func _show_base_camp() -> void:
+	var main = battle_scene as Node2D
+	if main and main.has_method("disable_battle_camera"):
+		main.disable_battle_camera()
+	get_viewport().canvas_transform = Transform2D.IDENTITY
 	base_camp.visible = true
 	base_camp.position = Vector2.ZERO
 	base_camp.scale = Vector2.ONE

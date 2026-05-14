@@ -149,7 +149,7 @@ func spawn_collect_effect() -> void:
 		get_tree().root.add_child(particle)
 
 		var target_pos = player.global_position + Vector2(randf_range(-10, 10), randf_range(-10, 10))
-		var tween = create_tween()
+		var tween = particle.create_tween()
 		tween.tween_property(particle, "global_position", target_pos, 0.2 + i * 0.03)
 		tween.set_ease(Tween.EASE_OUT)
 		tween.chain().tween_property(particle, "modulate:a", 0.0, 0.1)
@@ -167,7 +167,7 @@ func spawn_collect_effect() -> void:
 	ring.add_to_group("battle_effects")
 	get_tree().root.add_child(ring)
 
-	var ring_tween = create_tween()
+	var ring_tween = ring.create_tween()
 	ring_tween.tween_property(ring, "scale", Vector2(2.5, 2.5), 0.3)
 	ring_tween.chain().tween_property(ring, "modulate:a", 0.0, 0.1)
 	ring_tween.chain().tween_callback(ring.queue_free)
