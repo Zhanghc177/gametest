@@ -193,6 +193,13 @@ func _physics_process(delta: float) -> void:
 	# 更新动画状态机
 	_update_animation(delta)
 	# _update_glow_effect(delta)  # TEMP DISABLED
+	var main = get_tree().get_first_node_in_group("main")
+	if main and main.get("game_running") == false:
+		hide_warn_fan()
+		_hide_warning_effects()
+		_hide_attack_range_box()
+		_hide_countdown()
+		return
 
 	if invincible > 0:
 		invincible -= delta
@@ -306,6 +313,22 @@ func spawn_attack_effect() -> void:
 
 func show_warn_fan() -> void:
 	hide_warn_fan()
+	warn_fan = Polygon2D.new()
+	var points = PackedVector2Array()
+	points.append(Vector2.ZERO)
+
+	var segments = 12
+	var fan_angle = PI / 2
+	for i in range(segments + 1):
+		var a = -fan_angle / 2 + fan_angle * i / segments
+		points.append(Vector2(cos(a), sin(a)) * WARN_RANGE)
+
+	warn_fan.polygon = points
+	warn_fan.color = Color(1.0, 0.35, 0.1, 0.14)
+	warn_fan.global_position = global_position
+	warn_fan.rotation = attack_direction
+	warn_fan.add_to_group("battle_effects")
+	get_tree().root.add_child(warn_fan)
 
 func hide_warn_fan() -> void:
 	if warn_fan:
@@ -324,6 +347,18 @@ func _hide_warning_effects() -> void:
 ## 显示攻击范围红框
 func _show_attack_range_box() -> void:
 	_hide_attack_range_box()
+	attack_range_box = Polygon2D.new()
+	var box_points = PackedVector2Array([
+		Vector2(-ATK_RANGE - 24, -ATK_RANGE - 24),
+		Vector2(ATK_RANGE + 24, -ATK_RANGE - 24),
+		Vector2(ATK_RANGE + 24, ATK_RANGE + 24),
+		Vector2(-ATK_RANGE - 24, ATK_RANGE + 24)
+	])
+	attack_range_box.polygon = box_points
+	attack_range_box.color = Color(1.0, 0.45, 0.15, 0.08)
+	attack_range_box.global_position = global_position
+	attack_range_box.add_to_group("battle_effects")
+	get_tree().root.add_child(attack_range_box)
 
 func _hide_attack_range_box() -> void:
 	if attack_range_box:
@@ -379,6 +414,7 @@ func spawn_damage_popup(dmg: float) -> void:
 	popup.global_position = global_position + Vector2(-10, -30)
 	popup.add_theme_font_size_override("font_size", 16)
 	popup.modulate = Color(1.0, 0.3, 0.1, 1.0)
+	popup.add_to_group("battle_effects")
 	get_tree().root.add_child(popup)
 
 	var tween = create_tween()

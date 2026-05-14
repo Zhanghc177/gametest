@@ -116,6 +116,11 @@ func _add_stripes() -> void:
 		marker_nodes.append(stripe)
 
 func _physics_process(delta: float) -> void:
+	var main = get_tree().get_first_node_in_group("main")
+	if main and main.get("game_running") == false:
+		hide_warn_fan()
+		return
+
 	if invincible > 0:
 		invincible -= delta
 		modulate.a = 0.5 if fmod(invincible, 0.1) < 0.05 else 1.0
@@ -271,6 +276,22 @@ func spawn_attack_effect() -> void:
 
 func show_warn_fan() -> void:
 	hide_warn_fan()
+	warn_fan = Polygon2D.new()
+	var points = PackedVector2Array()
+	points.append(Vector2.ZERO)
+
+	var segments = 12
+	var fan_angle = PI / 2.5
+	for i in range(segments + 1):
+		var a = -fan_angle / 2 + fan_angle * i / segments
+		points.append(Vector2(cos(a), sin(a)) * WARN_RANGE)
+
+	warn_fan.polygon = points
+	warn_fan.color = Color(0.3, 0.8, 0.3, 0.18)
+	warn_fan.global_position = global_position
+	warn_fan.rotation = attack_direction
+	warn_fan.add_to_group("battle_effects")
+	get_tree().root.add_child(warn_fan)
 
 func hide_warn_fan() -> void:
 	if warn_fan:
@@ -305,6 +326,7 @@ func spawn_damage_popup(dmg: float) -> void:
 	popup.global_position = global_position + Vector2(-10, -30)
 	popup.add_theme_font_size_override("font_size", 16)
 	popup.modulate = Color(1.0, 0.3, 0.1, 1.0)
+	popup.add_to_group("battle_effects")
 	get_tree().root.add_child(popup)
 
 	var tween = create_tween()

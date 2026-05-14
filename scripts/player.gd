@@ -347,6 +347,7 @@ func spawn_dodge_effect() -> void:
 	trail.color = Color(0.5, 0.8, 1.0, 0.6)
 	trail.global_position = global_position
 	trail.rotation = dash_direction.angle()
+	trail.add_to_group("battle_effects")
 	get_tree().root.add_child(trail)
 
 	var tween = create_tween()
@@ -484,6 +485,7 @@ func spawn_attack_effect(params: Dictionary) -> void:
 	shockwave.polygon = points
 	shockwave.color = Color(1.0, 0.8, 0.3, 0.7)
 	shockwave.global_position = global_position
+	shockwave.add_to_group("battle_effects")
 	get_tree().root.add_child(shockwave)
 
 	var tween = create_tween()
@@ -498,6 +500,7 @@ func spawn_attack_effect(params: Dictionary) -> void:
 	ring.polygon = ring_points
 	ring.color = Color(1.0, 0.6, 0.1, 0.8)
 	ring.global_position = global_position
+	ring.add_to_group("battle_effects")
 	get_tree().root.add_child(ring)
 
 	var ring_tween = create_tween()
@@ -514,6 +517,7 @@ func spawn_attack_effect(params: Dictionary) -> void:
 		particle.polygon = p_points
 		particle.color = Color(1.0, 0.7, 0.2, 0.9)
 		particle.global_position = global_position
+		particle.add_to_group("battle_effects")
 
 		var dir = Vector2.RIGHT.rotated(params.angle + randf_range(-params.fan_angle/2, params.fan_angle/2))
 		var dist = randf_range(30, params.range * 0.8)
@@ -544,6 +548,7 @@ func spawn_footstep() -> void:
 	footprint.global_position = global_position + Vector2(0, 15)
 	footprint.rotation = randf() * TAU
 	footprint.add_to_group("footprints")
+	footprint.add_to_group("battle_effects")
 	get_tree().root.add_child(footprint)
 
 	var tween = create_tween()
@@ -587,6 +592,7 @@ func spawn_damage_vignette() -> void:
 	var vignette = ColorRect.new()
 	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vignette.color = Color(0.8, 0.1, 0.1, 0.4)
+	vignette.add_to_group("battle_effects")
 	get_tree().root.add_child(vignette)
 
 	var tween = create_tween()
@@ -603,6 +609,7 @@ func spawn_shield_break_effect() -> void:
 	effect.polygon = points
 	effect.color = Color(0.6, 0.6, 1.0, 0.8)
 	effect.global_position = global_position
+	effect.add_to_group("battle_effects")
 	get_tree().root.add_child(effect)
 
 	var tween = create_tween()
@@ -612,7 +619,27 @@ func spawn_shield_break_effect() -> void:
 
 func die() -> void:
 	emit_signal("player_dead")
-	queue_free()
+	velocity = Vector2.ZERO
+	is_dashing = false
+	is_charging = false
+	attack_fan.visible = false
+	visible = false
+	set_physics_process(false)
+	if has_node("CollisionShape2D"):
+		$CollisionShape2D.set_deferred("disabled", true)
+
+func revive_for_battle() -> void:
+	visible = true
+	set_physics_process(true)
+	if has_node("CollisionShape2D"):
+		$CollisionShape2D.set_deferred("disabled", false)
+	hp = HP_MAX
+	health_bar.value = HP_MAX
+	velocity = Vector2.ZERO
+	is_dashing = false
+	is_charging = false
+	attack_fan.visible = false
+	invincible = 0.0
 
 func apply_evolution_color(color: Color) -> void:
 	evolution_color = color

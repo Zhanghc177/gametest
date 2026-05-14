@@ -20,7 +20,7 @@ var ant_animation: AnimationPlayer  # 蚂蚁动画播放器
 var is_transitioning: bool = false
 var game_was_interrupted: bool = false  ## 追踪撤离是否被中断
 
-var inventory: Dictionary = { "beetle_remains": 0, "locust_remains": 0, "spider_remains": 0, "mantis_remains": 0, "food": 100 }
+var inventory: Dictionary = { "beetle_remains": 0, "locust_remains": 0, "spider_remains": 0, "mantis_remains": 0, "bee_remains": 0, "food": 100 }
 
 ## 蚂蚁数量 (基地中现有的蚂蚁)
 var ant_count: Dictionary = {
@@ -1229,8 +1229,16 @@ func _apply_return_to_base_results() -> void:
 		else:
 			complete_extraction(false)
 	battle_scene.visible = false
-	base_camp.visible = true
+	_show_base_camp()
 	save_game()
+
+func _show_base_camp() -> void:
+	base_camp.visible = true
+	base_camp.position = Vector2.ZERO
+	base_camp.scale = Vector2.ONE
+	if base_camp.has_method("prepare_for_show"):
+		base_camp.prepare_for_show()
+	base_camp.move_to_front()
 
 ## 执行返回基地的过渡效果
 func execute_transition_to_base() -> void:

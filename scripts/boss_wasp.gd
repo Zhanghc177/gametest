@@ -56,6 +56,7 @@ func _ready() -> void:
 	health_bar.value = hp
 	warning_sprite.visible = false
 	add_to_group("boss")
+	add_to_group("enemies")
 
 	main = get_tree().get_first_node_in_group("main")
 	player = get_tree().get_first_node_in_group("player")
@@ -64,6 +65,11 @@ func _ready() -> void:
 	attack_cooldown = randf_range(1.0, 2.0)
 
 func _physics_process(delta: float) -> void:
+	if main and main.get("game_running") == false:
+		velocity = Vector2.ZERO
+		warning_sprite.visible = false
+		return
+
 	if invincible > 0:
 		invincible -= delta
 		modulate.a = 0.5 if fmod(invincible, 0.1) < 0.05 else 1.0
@@ -198,6 +204,7 @@ func fire_poison_needle() -> void:
 
 	needle.global_position = global_position
 	needle.add_to_group("poison_needle")
+	needle.add_to_group("battle_effects")
 	get_tree().root.add_child(needle)
 
 	# 飞向玩家
@@ -308,6 +315,7 @@ func spawn_damage_popup(dmg: float) -> void:
 	popup.add_theme_font_size_override("font_size", 20)
 	popup.add_theme_color_override("font_color", Color(1.0, 0.8, 0.0))
 	popup.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	popup.add_to_group("battle_effects")
 	get_tree().root.add_child(popup)
 
 	var tween = create_tween()
@@ -344,6 +352,7 @@ func spawn_resource_drop() -> void:
 			var resource = resource_scene.instantiate()
 			resource.position = pos
 			resource.set_resource_type("bee_remains")
+			resource.add_to_group("battle_effects")
 			get_tree().root.add_child(resource)
 
 func spawn_hit_effect() -> void:
@@ -355,6 +364,7 @@ func spawn_hit_effect() -> void:
 	effect.polygon = points
 	effect.color = Color(1.0, 0.5, 0.0, 0.8)
 	effect.global_position = global_position
+	effect.add_to_group("battle_effects")
 	get_tree().root.add_child(effect)
 
 	var tween = create_tween()
@@ -377,6 +387,7 @@ func spawn_phase_change_effect() -> void:
 		ring.polygon = ring_points
 		ring.color = Color(1.0, 0.8, 0.0, 0.8)
 		ring.global_position = global_position + dir * 30
+		ring.add_to_group("battle_effects")
 		get_tree().root.add_child(ring)
 
 		var tween = create_tween()
@@ -398,6 +409,7 @@ func spawn_dash_wind_effect() -> void:
 		wind.color = Color(0.8, 0.9, 1.0, 0.5)
 		wind.global_position = global_position - dash_direction * (20 + i * 15)
 		wind.rotation = dash_direction.angle()
+		wind.add_to_group("battle_effects")
 		get_tree().root.add_child(wind)
 
 		var tween = create_tween()
@@ -420,6 +432,7 @@ func spawn_summon_effect() -> void:
 		])
 		rune.polygon = points
 		rune.global_position = pos
+		rune.add_to_group("battle_effects")
 		get_tree().root.add_child(rune)
 
 		var tween = create_tween()
@@ -450,6 +463,7 @@ func spawn_death_effect() -> void:
 			1.0
 		)
 		particle.global_position = global_position
+		particle.add_to_group("battle_effects")
 		get_tree().root.add_child(particle)
 
 		var tween = create_tween()

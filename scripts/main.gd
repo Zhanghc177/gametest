@@ -18,12 +18,13 @@ const ANT_STATS = {
 ## 性能优化配置
 const MAX_ENEMIES: int = 20  # 敌人数量上限
 const MAX_CELEBRATION_PARTICLES: int = 15  # 撤离庆祝粒子上限
-const RESOURCE_TYPES = ["beetle_remains", "locust_remains", "spider_remains", "mantis_remains"]
+const RESOURCE_TYPES = ["beetle_remains", "locust_remains", "spider_remains", "mantis_remains", "bee_remains"]
 const RESOURCE_NAMES = {
 	"beetle_remains": "甲虫",
 	"locust_remains": "蝗虫",
 	"spider_remains": "蜘蛛",
-	"mantis_remains": "螳螂"
+	"mantis_remains": "螳螂",
+	"bee_remains": "蜜蜂"
 }
 
 @onready var player: CharacterBody2D = $Player
@@ -97,6 +98,7 @@ var survival_time: float = 0.0  # 存活时间（秒）
 var battle_start_time: float = 0.0  # 战斗开始时间
 var settlement_panel: Panel = null  # 结算界面面板
 var _returning_to_base: bool = false
+var _last_battle_failed: bool = false
 
 ## 战斗回放系统变量
 var input_recording: Array[Dictionary] = []  # 当前战斗的输入记录
@@ -221,6 +223,9 @@ func hide_battle_ui() -> void:
 		if node:
 			node.visible = false
 	hide_boss_ui()
+
+func _mark_battle_effect(node: Node) -> void:
+	node.add_to_group("battle_effects")
 
 ## 显示BOSS血条
 func show_boss_ui(boss_name: String = "蜂后") -> void:
@@ -920,6 +925,7 @@ func spawn_boss_wasp() -> void:
 	boss.position = spawn_pos
 	boss.boss_died.connect(_on_boss_died)
 	add_child(boss)
+	boss.add_to_group("enemies")
 	enemies.append(boss)
 	current_boss = boss  # 记录当前BOSS引用
 	print("Main: 蜂后BOSS已生成! 位置:", spawn_pos)
@@ -930,16 +936,23 @@ func spawn_boss_wasp() -> void:
 ## BOSS死亡回调
 func _on_boss_died() -> void:
 	print("Main: BOSS已被击败!")
+	if current_boss and is_instance_valid(current_boss):
+		enemies.erase(current_boss)
+	wave_enemies_remaining = max(0, wave_enemies_remaining - 1)
+	kill_count += 1
 	current_boss = null
 	# 隐藏BOSS血条UI
 	hide_boss_ui()
 	show_warning_announcement("BOSS已被击败!")
+	update_ui()
 
 ## 敌人死亡时调用
 func _on_enemy_died(enemy: CharacterBody2D) -> void:
 	if not is_instance_valid(self) or not is_inside_tree():
 			return
 	enemies.erase(enemy)
+	if not game_running:
+		return
 	wave_enemies_remaining -= 1
 	kill_count += 1  # 增加击杀数
 	update_ui()
@@ -1028,6 +1041,7 @@ func _on_player_dead() -> void:
 
 func victory() -> void:
 	game_running = false
+	_last_battle_failed = false
 	survival_time = Time.get_ticks_msec() / 1000.0 - battle_start_time
 	save_battle_replay()  # 保存回放
 	await get_tree().create_timer(1.5).timeout
@@ -1035,6 +1049,7 @@ func victory() -> void:
 
 func defeat() -> void:
 	game_running = false
+	_last_battle_failed = true
 	survival_time = Time.get_ticks_msec() / 1000.0 - battle_start_time
 	save_battle_replay()  # 保存回放
 	await get_tree().create_timer(1.5).timeout
@@ -1046,6 +1061,7 @@ func extraction_success() -> void:
 	# 撤离成功时震动庆祝
 	vibrate(2)
 	game_running = false
+	_last_battle_failed = false
 	_reset_battle_controls()
 	survival_time = Time.get_ticks_msec() / 1000.0 - battle_start_time
 	save_battle_replay()  # 保存回放
@@ -1152,6 +1168,16 @@ func _clear_settlement_panel() -> void:
 		settlement_panel.queue_free()
 		settlement_panel = null
 
+func _clear_announcements() -> void:
+	if announcement_tween and is_instance_valid(announcement_tween):
+		announcement_tween.kill()
+	if announcement_panel and is_instance_valid(announcement_panel):
+		announcement_panel.queue_free()
+		announcement_panel = null
+	if announcement_timer and is_instance_valid(announcement_timer):
+		announcement_timer.queue_free()
+		announcement_timer = null
+
 func _reset_battle_controls() -> void:
 	joystick_input = Vector2.ZERO
 	joystick_active = false
@@ -1178,6 +1204,9 @@ func _clear_battle_runtime_nodes() -> void:
 	for e in enemies:
 		if is_instance_valid(e):
 			e.queue_free()
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if is_instance_valid(e) and e != player:
+			e.queue_free()
 	enemies.clear()
 
 	for a in player_ants:
@@ -1198,6 +1227,12 @@ func _clear_battle_runtime_nodes() -> void:
 	current_boss = null
 	hide_boss_ui()
 	cleanup_weather_system()
+	_clear_battle_effects()
+
+func _clear_battle_effects() -> void:
+	for effect in get_tree().get_nodes_in_group("battle_effects"):
+		if is_instance_valid(effect):
+			effect.queue_free()
 
 func prepare_for_base_return() -> void:
 	game_running = false
@@ -1209,6 +1244,7 @@ func prepare_for_base_return() -> void:
 		extraction_point.reset_extraction()
 	_clear_battle_runtime_nodes()
 	_clear_settlement_panel()
+	_clear_announcements()
 	hide_battle_ui()
 	update_ui()
 
@@ -1233,6 +1269,7 @@ func spawn_extraction_celebration() -> void:
 		var t = float(i) / 30.0
 		particle.color = Color(1.0, 0.7 + t * 0.3, 0.1, 0.9)
 		particle.global_position = player_pos
+		_mark_battle_effect(particle)
 		get_tree().root.add_child(particle)
 
 		# 向外散射的弧形轨迹
@@ -1257,6 +1294,7 @@ func spawn_extraction_celebration() -> void:
 	burst.polygon = burst_points
 	burst.color = Color(1.0, 0.9, 0.3, 0.8)
 	burst.global_position = player_pos
+	_mark_battle_effect(burst)
 	get_tree().root.add_child(burst)
 
 	var burst_tween = create_tween()
@@ -1276,6 +1314,7 @@ func spawn_extraction_celebration() -> void:
 		star.color = Color(1.0, 0.95, 0.5, 1.0)
 		star.global_position = player_pos + Vector2(randf_range(-100, 100), randf_range(-100, 100))
 		star.scale = Vector2(0.5, 0.5)
+		_mark_battle_effect(star)
 		get_tree().root.add_child(star)
 
 		var star_tween = create_tween()
@@ -1294,7 +1333,7 @@ func return_to_base() -> void:
 	if _game_manager_cache:
 		_returning_to_base = true
 		prepare_for_base_return()
-		_game_manager_cache.return_to_base()
+		_game_manager_cache.return_to_base(_last_battle_failed)
 	else:
 		print("Main: ERROR - no game_manager found!")
 
@@ -1302,6 +1341,7 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 	print("Main: start_battle called, visible=", visible)
 	game_running = true
 	_returning_to_base = false
+	_last_battle_failed = false
 	has_extraction_started = false
 	extraction_progress = 0.0
 	_reset_battle_controls()
@@ -1315,6 +1355,8 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 		inventory["spider_remains"] = 0
 	if not inventory.has("mantis_remains"):
 		inventory["mantis_remains"] = 0
+	if not inventory.has("bee_remains"):
+		inventory["bee_remains"] = 0
 	if not inventory.has("food") or inventory.get("food", 0) <= 0:
 		inventory["food"] = 100
 	_reset_battle_collected_resources()
@@ -1331,6 +1373,8 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 	survival_time = 0.0  # 重置存活时间
 	input_recording.clear()  # 清空输入记录
 
+	if player.has_method("revive_for_battle"):
+		player.revive_for_battle()
 	player.global_position = Vector2(540, 1500)
 	player.hp = player.HP_MAX
 	player.atk_boost = 0.0
@@ -2076,6 +2120,7 @@ func create_resource_burst(pos: Vector2) -> void:
 		var t = float(i) / particle_count
 		particle.color = Color(1.0, 0.5 + t * 0.3, 0.1, 0.9)
 		particle.global_position = pos
+		_mark_battle_effect(particle)
 		get_tree().root.add_child(particle)
 
 		# 向外散射
@@ -2100,6 +2145,7 @@ func create_resource_burst(pos: Vector2) -> void:
 	burst.polygon = burst_points
 	burst.color = Color(1.0, 0.7, 0.2, 0.8)
 	burst.global_position = pos
+	_mark_battle_effect(burst)
 	get_tree().root.add_child(burst)
 
 	var burst_tween = create_tween()
@@ -2119,6 +2165,7 @@ func create_attack_shockwave(pos: Vector2) -> void:
 	shockwave.polygon = points
 	shockwave.color = Color(1.0, 0.2, 0.1, 0.7)
 	shockwave.global_position = pos
+	_mark_battle_effect(shockwave)
 	get_tree().root.add_child(shockwave)
 
 	var tween = create_tween()
@@ -2134,6 +2181,7 @@ func create_attack_shockwave(pos: Vector2) -> void:
 		debris.polygon = PackedVector2Array([Vector2(-3, -2), Vector2(2, -3), Vector2(3, 2), Vector2(-2, 3)])
 		debris.color = Color(1.0, 0.3, 0.1, 0.8)
 		debris.global_position = pos
+		_mark_battle_effect(debris)
 		get_tree().root.add_child(debris)
 
 		var angle = randf_range(0, TAU)
@@ -2160,6 +2208,7 @@ func create_ant_dust(pos: Vector2, count: int = 3) -> void:
 		dust.color = Color(brightness, brightness * 0.85, brightness * 0.7, randf_range(0.3, 0.5))
 		dust.global_position = pos + Vector2(randf_range(-10, 10), randf_range(-10, 10))
 		dust.scale = Vector2(0.5, 0.5)
+		_mark_battle_effect(dust)
 		get_tree().root.add_child(dust)
 
 		# 下落+扩散

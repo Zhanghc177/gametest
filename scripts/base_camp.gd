@@ -63,6 +63,7 @@ const NEST_LEVEL_NAMES = {
 func _ready() -> void:
 	print("BaseCamp: _ready 开始")
 	# 连接按钮信号 - 使用直接路径
+	prepare_for_show()
 	$CenterContainer/VBox/EnterBattleBtn.pressed.connect(_on_enter_battle_pressed)
 	print("BaseCamp: EnterBattleBtn 信号已连接")
 	$CenterContainer/VBox/ShopBtn.pressed.connect(_on_shop_pressed)
@@ -81,6 +82,17 @@ func _ready() -> void:
 	# 这样可以确保 game_manager 已经调用过 _ready() 并添加到 "game_manager" 组
 	call_deferred("_init_from_game_manager")
 	print("BaseCamp: _ready 完成 (init deferred enabled)")
+
+func prepare_for_show() -> void:
+	position = Vector2.ZERO
+	scale = Vector2.ONE
+	rotation = 0.0
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for child_name in ["Background", "CenterContainer"]:
+		var child = get_node_or_null(child_name)
+		if child is Control:
+			child.position = Vector2.ZERO
+			child.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 func _init_from_game_manager() -> void:
 	var game_manager = get_tree().get_first_node_in_group("game_manager")
@@ -164,7 +176,7 @@ func update_resources() -> void:
 	$CenterContainer/VBox/BeetleLabel.text = "%s 甲虫残骸: %d" % [RESOURCE_ICONS.beetle_remains.icon, gm_inv.get("beetle_remains", 0)]
 	$CenterContainer/VBox/LocustLabel.text = "%s 蝗虫残骸: %d" % [RESOURCE_ICONS.locust_remains.icon, gm_inv.get("locust_remains", 0)]
 	$CenterContainer/VBox/SpiderLabel.text = "%s 蜘蛛残骸: %d" % [RESOURCE_ICONS.spider_remains.icon, gm_inv.get("spider_remains", 0)]
-	$CenterContainer/VBox/MantisLabel.text = "%s 螳螂残骸: %d" % [RESOURCE_ICONS.mantis_remains.icon, gm_inv.get("mantis_remains", 0)]
+	$CenterContainer/VBox/MantisLabel.text = "%s 螳螂残骸: %d  蜜蜂残骸: %d" % [RESOURCE_ICONS.mantis_remains.icon, gm_inv.get("mantis_remains", 0), gm_inv.get("bee_remains", 0)]
 
 	# 为残骸标签设置自定义颜色
 	$CenterContainer/VBox/BeetleLabel.modulate = RESOURCE_ICONS.beetle_remains.color

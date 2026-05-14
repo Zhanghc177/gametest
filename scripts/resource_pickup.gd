@@ -145,6 +145,7 @@ func spawn_collect_effect() -> void:
 		particle.polygon = p_points
 		particle.color = Color(1.0, 0.8, 0.2, 0.9)
 		particle.global_position = global_position
+		particle.add_to_group("battle_effects")
 		get_tree().root.add_child(particle)
 
 		var target_pos = player.global_position + Vector2(randf_range(-10, 10), randf_range(-10, 10))
@@ -163,6 +164,7 @@ func spawn_collect_effect() -> void:
 	ring.polygon = ring_points
 	ring.color = Color(1.0, 0.9, 0.3, 0.7)
 	ring.global_position = global_position
+	ring.add_to_group("battle_effects")
 	get_tree().root.add_child(ring)
 
 	var ring_tween = create_tween()
