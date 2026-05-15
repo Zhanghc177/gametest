@@ -45,6 +45,7 @@ var joystick_input: Vector2 = Vector2.ZERO
 var joystick_active: bool = false
 var attack_button_down: bool = false
 var dash_button_down: bool = false
+var skill_button_down: bool = false
 
 ## 触控手感优化参数
 const JOYSTICK_DEADZONE: float = 0.15  # 虚拟摇杆死区（减少漂移）
@@ -73,6 +74,8 @@ var current_wave: int = 0
 var max_waves: int = 1
 var wave_enemies_remaining: int = 0
 var wave_in_progress: bool = false
+var battle_waves_cleared: bool = false
+var selected_ant_type: String = "worker"
 
 ## BOSS血条系统变量
 var current_boss: Node = null  # 当前BOSS引用
@@ -175,6 +178,7 @@ func _ready() -> void:
 	print("Main: player=", player, " camera=", camera)
 	setup_camera()
 	setup_extraction_point()
+	_ensure_skill_touch_button()
 	print("Main: _ready 完成")
 
 func _process(_delta: float) -> void:
@@ -217,6 +221,9 @@ func show_battle_ui() -> void:
 	var touch_controls = canvas_layer.get_node_or_null("TouchControls")
 	if touch_controls:
 		touch_controls.visible = true
+	var direct_touch_controls = get_node_or_null("TouchControls")
+	if direct_touch_controls:
+		direct_touch_controls.visible = true
 	print("Main: 战场UI元素已显示")
 
 func hide_battle_ui() -> void:
@@ -224,7 +231,30 @@ func hide_battle_ui() -> void:
 		var node = canvas_layer.get_node_or_null(node_path)
 		if node:
 			node.visible = false
+	var touch_controls = get_node_or_null("TouchControls")
+	if touch_controls:
+		touch_controls.visible = false
 	hide_boss_ui()
+
+func _ensure_skill_touch_button() -> void:
+	var touch_controls = get_node_or_null("TouchControls")
+	if not touch_controls:
+		return
+	if touch_controls.has_node("SkillButton"):
+		return
+	var skill_button = Button.new()
+	skill_button.name = "SkillButton"
+	skill_button.text = "技能"
+	skill_button.anchors_preset = Control.PRESET_BOTTOM_RIGHT
+	skill_button.anchor_left = 1.0
+	skill_button.anchor_top = 1.0
+	skill_button.anchor_right = 1.0
+	skill_button.anchor_bottom = 1.0
+	skill_button.offset_left = -240.0
+	skill_button.offset_top = -300.0
+	skill_button.offset_right = -120.0
+	skill_button.offset_bottom = -200.0
+	touch_controls.add_child(skill_button)
 
 func _mark_battle_effect(node: Node) -> void:
 	node.add_to_group("battle_effects")
@@ -1042,12 +1072,15 @@ func _on_player_dead() -> void:
 	defeat()
 
 func victory() -> void:
-	game_running = false
+	if battle_waves_cleared:
+		return
+	battle_waves_cleared = true
+	wave_in_progress = false
 	_last_battle_failed = false
 	survival_time = Time.get_ticks_msec() / 1000.0 - battle_start_time
 	save_battle_replay()  # 保存回放
-	await get_tree().create_timer(1.5).timeout
-	show_settlement(true)
+	show_warning_announcement("三波已清理，前往撤离点撤离")
+	update_ui()
 
 func defeat() -> void:
 	game_running = false
@@ -1185,6 +1218,7 @@ func _reset_battle_controls() -> void:
 	joystick_active = false
 	attack_button_down = false
 	dash_button_down = false
+	skill_button_down = false
 	gamepad_leftstick = Vector2.ZERO
 	gamepad_rightstick = Vector2.ZERO
 	gamepad_lt = 0.0
@@ -1355,13 +1389,23 @@ func return_to_base() -> void:
 	else:
 		print("Main: ERROR - no game_manager found!")
 
-func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}) -> void:
+func _resolve_selected_ant_type(ant_count: Dictionary, requested_type: String) -> String:
+	if requested_type != "" and ant_count.get(requested_type, 0) > 0:
+		return requested_type
+	for ant_type in ["worker", "soldier", "shooter", "bomber", "flyer"]:
+		if ant_count.get(ant_type, 0) > 0:
+			return ant_type
+	return "worker"
+
+func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}, battle_ant_type: String = "worker") -> void:
 	print("Main: start_battle called, visible=", visible)
 	game_running = true
 	_returning_to_base = false
 	_last_battle_failed = false
 	has_extraction_started = false
 	extraction_progress = 0.0
+	battle_waves_cleared = false
+	selected_ant_type = _resolve_selected_ant_type(ant_count, battle_ant_type)
 	_reset_battle_controls()
 	inventory = initial_inventory.duplicate()
 	# 确保 inventory 有必要的键
@@ -1391,13 +1435,16 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 	survival_time = 0.0  # 重置存活时间
 	input_recording.clear()  # 清空输入记录
 
+	if player.has_method("apply_ant_class"):
+		player.apply_ant_class(selected_ant_type)
 	if player.has_method("revive_for_battle"):
 		player.revive_for_battle()
 	player.global_position = Vector2(540, 1500)
-	player.hp = player.HP_MAX
+	player.hp = player.get("class_hp_max") if player.get("class_hp_max") != null else player.HP_MAX
 	player.atk_boost = 0.0
 	player.atk_boost_timer = 0.0
-	player.health_bar.value = player.HP_MAX
+	player.health_bar.max_value = player.hp
+	player.health_bar.value = player.hp
 
 	# 重置摄像机位置紧跟在玩家位置之后
 	enable_battle_camera()
@@ -1405,8 +1452,8 @@ func start_battle(initial_inventory: Dictionary = {}, ant_count: Dictionary = {}
 
 	_clear_battle_runtime_nodes()
 
-	# 生成玩家携带的蚂蚁
-	spawn_player_ants(ant_count)
+	# New battle flow: the selected ant becomes the controllable character.
+	player_ants.clear()
 
 	# 初始化战场内容
 	spawn_obstacles()
@@ -1498,12 +1545,21 @@ func update_ui() -> void:
 
 	var buff_label = canvas_layer.get_node_or_null("BuffLabel")
 	if buff_label:
-		if player.atk_boost > 0:
+		var skill_cd = player.get("skill_cooldown") if player else 0.0
+		var skill_active = player.get("skill_timer") if player else 0.0
+		var class_label = player.get_ant_class_label() if player and player.has_method("get_ant_class_label") else selected_ant_type
+		if skill_active > 0:
+			buff_label.text = "%s 技能生效" % class_label
+			buff_label.modulate = Color(0.29, 0.87, 0.31)
+		elif skill_cd > 0:
+			buff_label.text = "%s 技能 %.0fs" % [class_label, skill_cd]
+			buff_label.modulate = Color(1.0, 0.8, 0.2)
+		elif player.atk_boost > 0:
 			buff_label.text = "攻击+"
 			buff_label.modulate = Color(0.29, 0.87, 0.31)
 		else:
-			buff_label.text = ""
-			buff_label.modulate = Color(1, 1, 1, 0)
+			buff_label.text = "%s 技能就绪" % class_label
+			buff_label.modulate = Color(0.8, 0.9, 1.0)
 
 	var extract_label = canvas_layer.get_node_or_null("ExtractProgress")
 	if extract_label:
@@ -1520,9 +1576,10 @@ func update_ui() -> void:
 	var health_bar = canvas_layer.get_node_or_null("HealthBar")
 	var health_label = canvas_layer.get_node_or_null("HealthBar/HealthLabel")
 	if health_bar and health_label:
-		health_bar.max_value = player.HP_MAX
+		var max_hp = player.get("class_hp_max") if player.get("class_hp_max") != null else player.HP_MAX
+		health_bar.max_value = max_hp
 		health_bar.value = player.hp
-		health_label.text = "生命: %d/%d" % [player.hp, player.HP_MAX]
+		health_label.text = "生命: %d/%d" % [player.hp, max_hp]
 
 	# 更新BOSS血条
 	update_boss_health_display()
@@ -1862,6 +1919,7 @@ func handle_touch_input(event: InputEvent) -> void:
 	var attack_button = touch_controls.get_node_or_null("AttackButton")
 	var dash_button = touch_controls.get_node_or_null("DashButton")
 	var extract_button = touch_controls.get_node_or_null("ExtractButton")
+	var skill_button = touch_controls.get_node_or_null("SkillButton")
 
 	# 攻击按钮处理 - 扩大检测半径提高灵敏度
 	if attack_button:
@@ -1874,6 +1932,11 @@ func handle_touch_input(event: InputEvent) -> void:
 		if event is InputEventScreenTouch:
 			if event.position.distance_to(dash_button.global_position + dash_button.size / 2) < DASH_BUTTON_RADIUS:
 				dash_button_down = event.pressed  # 即时响应
+
+	if skill_button:
+		if event is InputEventScreenTouch:
+			if event.position.distance_to(skill_button.global_position + skill_button.size / 2) < DASH_BUTTON_RADIUS:
+				skill_button_down = event.pressed
 
 	# 撤离按钮处理 - 扩大检测半径
 	if extract_button and event is InputEventScreenTouch:
@@ -1943,6 +2006,11 @@ func is_dash_button_down() -> bool:
 	if not game_running:
 		return false
 	return dash_button_down
+
+func is_skill_button_down() -> bool:
+	if not game_running:
+		return false
+	return skill_button_down
 
 ## ==================== 天气系统 - 洞穴氛围效果 ====================
 

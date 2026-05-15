@@ -2,7 +2,7 @@ extends Control
 
 ## 基地界面 - 蚁巢管理、蚂蚁生产、物资存储
 
-signal enter_battle
+signal enter_battle(selected_ant_type: String)
 signal open_settings
 signal return_to_main_menu
 signal open_mail
@@ -355,7 +355,7 @@ func _on_enter_battle_pressed() -> void:
 	var game_manager = get_tree().get_first_node_in_group("game_manager")
 	if not game_manager:
 		print("BaseCamp: 未找到 game_manager，直接发射信号")
-		enter_battle.emit()
+		enter_battle.emit("worker")
 		return
 
 	# 检查是否有可用蚂蚁
@@ -370,10 +370,69 @@ func _on_enter_battle_pressed() -> void:
 		show_tip("没有蚂蚁！请先生产蚂蚁")
 		return
 
-	# 直接进入战场，不消耗食物
-	print("BaseCamp: 携带现有蚂蚁进入战场")
-	game_manager.save_game()
-	enter_battle.emit()
+	_show_ant_selection_panel()
+
+func _show_ant_selection_panel() -> void:
+	if has_node("BattleAntSelectPanel"):
+		$BattleAntSelectPanel.queue_free()
+	var available_types = _get_available_battle_ant_types()
+	if available_types.is_empty():
+		show_tip("没有已解锁且可出战的蚂蚁")
+		return
+
+	var panel = PanelContainer.new()
+	panel.name = "BattleAntSelectPanel"
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.modulate = Color(1, 1, 1, 0.98)
+	add_child(panel)
+
+	var outer = VBoxContainer.new()
+	outer.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_child(outer)
+
+	var title = Label.new()
+	title.text = "选择出战蚂蚁"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 30)
+	outer.add_child(title)
+
+	for ant_type in available_types:
+		var btn = Button.new()
+		btn.custom_minimum_size = Vector2(360, 54)
+		btn.text = "%s  x%d" % [_get_ant_type_name(ant_type), ant_count.get(ant_type, 0)]
+		btn.pressed.connect(_on_battle_ant_selected.bind(ant_type))
+		outer.add_child(btn)
+
+	var cancel_btn = Button.new()
+	cancel_btn.custom_minimum_size = Vector2(360, 46)
+	cancel_btn.text = "取消"
+	cancel_btn.pressed.connect(_close_ant_selection_panel)
+	outer.add_child(cancel_btn)
+
+func _get_available_battle_ant_types() -> Array:
+	var game_manager = get_tree().get_first_node_in_group("game_manager")
+	var unlocked = game_manager.get_available_ant_types() if game_manager else ant_count.keys()
+	var result = []
+	for ant_type in ["worker", "soldier", "shooter", "bomber", "flyer"]:
+		if ant_type in unlocked and ant_count.get(ant_type, 0) > 0:
+			result.append(ant_type)
+	return result
+
+func _on_battle_ant_selected(ant_type: String) -> void:
+	var game_manager = get_tree().get_first_node_in_group("game_manager")
+	if game_manager:
+		game_manager.save_game()
+	_close_ant_selection_panel()
+	enter_battle.emit(ant_type)
+
+func _close_ant_selection_panel() -> void:
+	if has_node("BattleAntSelectPanel"):
+		$BattleAntSelectPanel.queue_free()
+
+func _get_ant_type_name(ant_type: String) -> String:
+	if ANT_TYPES.has(ant_type):
+		return ANT_TYPES[ant_type].name
+	return ant_type
 
 func _on_shop_pressed() -> void:
 	_show_shop_panel()

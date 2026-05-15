@@ -45,6 +45,63 @@ const ATK_ANGLE: float = PI / 2.2
 const ATK_BOOST_AMOUNT: float = 0.10
 const ATK_BOOST_DURATION: float = 20.0
 const ATTACK_COOLDOWN_AFTER: float = 0.1
+const ANT_CLASS_CONFIG = {
+	"worker": {
+		"name": "工蚁",
+		"hp": 90.0,
+		"speed": 330.0,
+		"atk_base": 12.0,
+		"atk_full": 30.0,
+		"range_min": 42.0,
+		"range_max": 105.0,
+		"fan_angle": PI / 1.7,
+		"color": Color(0.86, 0.48, 0.18, 1.0)
+	},
+	"soldier": {
+		"name": "兵蚁",
+		"hp": 135.0,
+		"speed": 280.0,
+		"atk_base": 22.0,
+		"atk_full": 52.0,
+		"range_min": 52.0,
+		"range_max": 125.0,
+		"fan_angle": PI / 2.4,
+		"color": Color(0.55, 0.28, 0.12, 1.0)
+	},
+	"shooter": {
+		"name": "射手蚁",
+		"hp": 80.0,
+		"speed": 290.0,
+		"atk_base": 16.0,
+		"atk_full": 38.0,
+		"range_min": 85.0,
+		"range_max": 190.0,
+		"fan_angle": PI / 4.0,
+		"color": Color(0.58, 0.72, 0.30, 1.0)
+	},
+	"bomber": {
+		"name": "爆破蚁",
+		"hp": 100.0,
+		"speed": 250.0,
+		"atk_base": 26.0,
+		"atk_full": 58.0,
+		"range_min": 45.0,
+		"range_max": 115.0,
+		"fan_angle": PI * 1.25,
+		"color": Color(0.62, 0.30, 0.16, 1.0)
+	},
+	"flyer": {
+		"name": "飞蚁",
+		"hp": 75.0,
+		"speed": 360.0,
+		"atk_base": 14.0,
+		"atk_full": 34.0,
+		"range_min": 60.0,
+		"range_max": 150.0,
+		"fan_angle": PI / 2.8,
+		"color": Color(0.38, 0.66, 0.95, 1.0)
+	}
+}
 
 ## 冲刺技能
 const DASH_SPEED: float = 600.0
@@ -56,6 +113,21 @@ const JOYSTICK_DEADZONE: float = 0.15
 const GAMEPAD_DEADZONE: float = 0.1
 
 var hp: float = HP_MAX
+var ant_class: String = "worker"
+var class_hp_max: float = HP_MAX
+var class_speed: float = SPEED
+var class_atk_base: float = ATK_BASE
+var class_atk_full: float = ATK_FULL
+var class_range_min: float = ATK_RANGE_MIN
+var class_range_max: float = ATK_RANGE_MAX
+var class_fan_angle: float = ATK_ANGLE
+var skill_cooldown: float = 0.0
+var skill_timer: float = 0.0
+var skill_speed_multiplier: float = 1.0
+var next_attack_bonus_multiplier: float = 1.0
+var is_flying: bool = false
+var _ability_input_was_down: bool = false
+var _base_collision_mask: int = 0
 var move_direction: Vector2 = Vector2.ZERO
 var attack_direction: float = 0.0
 var is_charging: bool = false
@@ -177,7 +249,9 @@ var buff_effects: Node2D
 @onready var attack_fan: Polygon2D = $AttackFan
 
 func _ready() -> void:
-	health_bar.max_value = HP_MAX
+	_base_collision_mask = collision_mask
+	apply_ant_class(ant_class)
+	health_bar.max_value = class_hp_max
 	health_bar.value = hp
 	charge_timer.timeout.connect(_on_charge_timeout)
 	cooldown_timer.timeout.connect(_on_cooldown_timeout)
@@ -217,12 +291,18 @@ func _physics_process(delta: float) -> void:
 		invincible -= delta
 		modulate.a = 0.5 if fmod(invincible, 0.1) < 0.05 else 1.0
 	else:
-		modulate.a = 1.0
+		modulate.a = 0.72 if is_flying else 1.0
 
 	if atk_boost_timer > 0:
 		atk_boost_timer -= delta
 		if atk_boost_timer <= 0:
 			atk_boost = 0.0
+	if skill_cooldown > 0:
+		skill_cooldown = max(0.0, skill_cooldown - delta)
+	if skill_timer > 0:
+		skill_timer -= delta
+		if skill_timer <= 0:
+			_end_active_skill()
 
 	for ability in temporary_abilities:
 		if temporary_ability_timers.has(ability):
@@ -240,6 +320,8 @@ func _physics_process(delta: float) -> void:
 			footstep_timer = FOOTSTEP_INTERVAL
 
 	for obstacle in get_tree().get_nodes_in_group("obstacles"):
+		if is_flying:
+			break
 		if obstacle is StaticBody2D:
 			var collision = obstacle.get_child(0) as CollisionShape2D
 			if collision and collision.shape is CircleShape2D:
@@ -321,6 +403,13 @@ func handle_input() -> void:
 	if (trigger_down or attack_button_down or Input.is_action_pressed("attack_charge")) and attack_cooldown <= 0:
 		start_charge()
 
+	var ability_down = Input.is_action_pressed("ability")
+	if main and main.has_method("is_skill_button_down"):
+		ability_down = ability_down or main.is_skill_button_down()
+	if ability_down and not _ability_input_was_down:
+		activate_class_skill()
+	_ability_input_was_down = ability_down
+
 func start_charge() -> void:
 	if is_charging:
 		charge_power = min(1.0, charge_power + get_process_delta_time() / CHARGE_TIME)
@@ -376,6 +465,8 @@ func perform_attack() -> void:
 		if enemy.has_method("take_damage") and is_in_attack_fan(enemy.global_position, params):
 			enemy.take_damage(params.damage)
 			hit_count += 1
+	if next_attack_bonus_multiplier > 1.0:
+		next_attack_bonus_multiplier = 1.0
 
 	if hit_count > 0:
 		var tween = create_tween()
@@ -410,12 +501,12 @@ func get_attack_params() -> Dictionary:
 	var p = charge_power
 	var exp_p = pow(p, 0.8)
 	var total_atk = get_total_atk()
-	var base_dmg = total_atk + (ATK_FULL - ATK_BASE) * p * p
+	var base_dmg = total_atk + (class_atk_full - class_atk_base) * p * p
 	return {
-		"range": ATK_RANGE_MIN + (ATK_RANGE_MAX - ATK_RANGE_MIN) * exp_p,
-		"damage": base_dmg * get_attack_multiplier(),
+		"range": class_range_min + (class_range_max - class_range_min) * exp_p,
+		"damage": base_dmg * get_attack_multiplier() * next_attack_bonus_multiplier,
 		"angle": attack_direction,
-		"fan_angle": ATK_ANGLE * (0.7 + 0.3 * p)
+		"fan_angle": class_fan_angle * (0.7 + 0.3 * p)
 	}
 
 func update_attack_fan(params: Dictionary) -> void:
@@ -435,6 +526,92 @@ func update_attack_fan(params: Dictionary) -> void:
 
 	var alpha = 0.2 + charge_power * 0.3
 	attack_fan.color = Color(0.29, 0.87, 0.31, alpha)
+
+func apply_ant_class(new_class: String) -> void:
+	if not ANT_CLASS_CONFIG.has(new_class):
+		new_class = "worker"
+	ant_class = new_class
+	var config = ANT_CLASS_CONFIG[ant_class]
+	class_hp_max = config.hp
+	class_speed = config.speed
+	class_atk_base = config.atk_base
+	class_atk_full = config.atk_full
+	class_range_min = config.range_min
+	class_range_max = config.range_max
+	class_fan_angle = config.fan_angle
+	hp = class_hp_max
+	if health_bar:
+		health_bar.max_value = class_hp_max
+		health_bar.value = hp
+	_apply_class_color(config.color)
+	_reset_class_skill_state()
+
+func _apply_class_color(color: Color) -> void:
+	modulate = Color(1, 1, 1, 1)
+	var head = get_node_or_null("AntBody/Head")
+	var body = get_node_or_null("AntBody/Body")
+	var abdomen = get_node_or_null("AntBody/Abdomen")
+	if head:
+		head.color = color.darkened(0.25)
+	if body:
+		body.color = color
+	if abdomen:
+		abdomen.color = color.darkened(0.15)
+
+func activate_class_skill() -> void:
+	if skill_cooldown > 0 or hp <= 0:
+		return
+	match ant_class:
+		"worker":
+			skill_speed_multiplier = 1.75
+			skill_timer = 3.0
+			skill_cooldown = 8.0
+			flash_effect(Color(0.4, 1.0, 0.4, 1.0))
+		"soldier":
+			next_attack_bonus_multiplier = 1.85
+			skill_timer = 6.0
+			skill_cooldown = 9.0
+			flash_effect(Color(1.0, 0.45, 0.2, 1.0))
+		"shooter":
+			next_attack_bonus_multiplier = 1.35
+			skill_timer = 5.0
+			skill_cooldown = 8.0
+			flash_effect(Color(0.7, 1.0, 0.35, 1.0))
+		"bomber":
+			next_attack_bonus_multiplier = 1.55
+			skill_timer = 5.0
+			skill_cooldown = 10.0
+			flash_effect(Color(1.0, 0.45, 0.2, 1.0))
+		"flyer":
+			is_flying = true
+			skill_timer = 3.5
+			skill_cooldown = 10.0
+			collision_mask = _base_collision_mask & ~(1 << 2)
+			modulate.a = 0.72
+			flash_effect(Color(0.45, 0.75, 1.0, 1.0))
+
+func _end_active_skill() -> void:
+	skill_speed_multiplier = 1.0
+	if next_attack_bonus_multiplier > 1.0 and ant_class != "soldier":
+		next_attack_bonus_multiplier = 1.0
+	if is_flying:
+		is_flying = false
+		collision_mask = _base_collision_mask
+		modulate.a = 1.0
+
+func _reset_class_skill_state() -> void:
+	skill_cooldown = 0.0
+	skill_timer = 0.0
+	skill_speed_multiplier = 1.0
+	next_attack_bonus_multiplier = 1.0
+	is_flying = false
+	_ability_input_was_down = false
+	if _base_collision_mask != 0:
+		collision_mask = _base_collision_mask
+
+func get_ant_class_label() -> String:
+	var config = ANT_CLASS_CONFIG.get(ant_class, ANT_CLASS_CONFIG["worker"])
+	return config.name
 
 func apply_attack_boost() -> void:
 	atk_boost = ATK_BOOST_AMOUNT
@@ -633,8 +810,10 @@ func revive_for_battle() -> void:
 	set_physics_process(true)
 	if has_node("CollisionShape2D"):
 		$CollisionShape2D.set_deferred("disabled", false)
-	hp = HP_MAX
-	health_bar.value = HP_MAX
+	_reset_class_skill_state()
+	hp = class_hp_max
+	health_bar.max_value = class_hp_max
+	health_bar.value = class_hp_max
 	velocity = Vector2.ZERO
 	is_dashing = false
 	is_charging = false
@@ -688,7 +867,7 @@ func apply_buff_effects(delta: float) -> void:
 		else:
 			match buff_type:
 				"heal":
-					hp = min(HP_MAX, hp + buff["value"] * delta)
+					hp = min(class_hp_max, hp + buff["value"] * delta)
 					health_bar.value = hp
 				"attack":
 					pass
@@ -706,7 +885,7 @@ func get_current_speed() -> float:
 	var speed_mult = 1.0
 	if active_buffs.has("speed"):
 		speed_mult += active_buffs["speed"]["value"]
-	return SPEED * speed_mult
+	return class_speed * speed_mult * skill_speed_multiplier
 
 func get_attack_multiplier() -> float:
 	var atk_mult = 1.0
@@ -837,7 +1016,7 @@ func _recalculate_equipment_bonus() -> void:
 			equipment_bonus_def += item.get("def", 0.0)
 
 func get_total_atk() -> float:
-	return ATK_BASE + equipment_bonus_atk
+	return class_atk_base + equipment_bonus_atk
 
 func get_total_def() -> float:
 	return DEF_BASE + equipment_bonus_def

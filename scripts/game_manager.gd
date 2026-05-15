@@ -1024,7 +1024,7 @@ func execute_transition(to_battle: bool, duration: float = 0.5) -> void:
 		battle_scene.visible = true
 		var main = battle_scene as Node2D
 		if main:
-			main.start_battle(inventory, ant_count)
+			main.start_battle(inventory, ant_count, "")
 
 	# 淡出所有元素
 	var fade_out = create_tween()
@@ -1147,7 +1147,7 @@ func get_quest_completion_info() -> Dictionary:
 			completed += 1
 	return { "completed": completed, "total": total }
 
-func _on_enter_battle() -> void:
+func _on_enter_battle(selected_ant_type: String = "") -> void:
 	print("GameManager: _on_enter_battle called")
 	print("GameManager: battle_scene=", battle_scene)
 	print("GameManager: base_camp=", base_camp)
@@ -1172,7 +1172,7 @@ func _on_enter_battle() -> void:
 	var main = battle_scene as Node2D
 	if main:
 		print("GameManager: calling main.start_battle")
-		main.start_battle(inventory, ant_count)
+		main.start_battle(inventory, ant_count, selected_ant_type)
 		print("GameManager: main.start_battle completed")
 	else:
 		print("GameManager: ERROR - main is null after cast!")
