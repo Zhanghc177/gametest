@@ -318,10 +318,13 @@ func spawn_damage_popup(dmg: float) -> void:
 	popup.add_to_group("battle_effects")
 	get_tree().root.add_child(popup)
 
-	var tween = create_tween()
+	var tween = popup.create_tween()
 	tween.tween_property(popup, "position:y", popup.global_position.y - 50, 0.6)
 	tween.chain().tween_property(popup, "modulate:a", 0.0, 0.2)
-	tween.chain().tween_callback(popup.queue_free)
+	tween.chain().tween_callback(func() -> void:
+		if is_instance_valid(popup):
+			popup.queue_free()
+	)
 
 func die() -> void:
 	# 掉落大量资源

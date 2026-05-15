@@ -193,8 +193,9 @@ func _physics_process(delta: float) -> void:
 	if attack_timer > 0:
 		attack_timer -= delta
 
-	attack_direction = global_position.angle_to(predicted_pos) - PI / 2
-	rotation = attack_direction + PI / 2
+	_update_attack_direction(predicted_pos)
+	if is_attacking:
+		_update_warn_fan()
 
 ## 获取附近盟友进行协作
 func _get_allies_in_range() -> Array:
@@ -273,6 +274,13 @@ func perform_attack() -> void:
 func spawn_attack_effect() -> void:
 	pass
 
+func _update_attack_direction(target_pos: Vector2) -> void:
+	var to_target = target_pos - global_position
+	if to_target.length_squared() <= 0.001:
+		return
+	attack_direction = to_target.angle()
+	rotation = attack_direction + PI / 2
+
 func is_target_in_attack_indicator(target_pos: Vector2, range_value: float, fan_angle: float) -> bool:
 	var to_target = target_pos - global_position
 	if to_target.length() > range_value:
@@ -298,6 +306,11 @@ func show_warn_fan() -> void:
 	warn_fan.rotation = attack_direction
 	warn_fan.add_to_group("battle_effects")
 	get_tree().root.add_child(warn_fan)
+
+func _update_warn_fan() -> void:
+	if warn_fan and is_instance_valid(warn_fan):
+		warn_fan.global_position = global_position
+		warn_fan.rotation = attack_direction
 
 func hide_warn_fan() -> void:
 	if warn_fan:
@@ -335,10 +348,13 @@ func spawn_damage_popup(dmg: float) -> void:
 	popup.add_to_group("battle_effects")
 	get_tree().root.add_child(popup)
 
-	var tween = create_tween()
+	var tween = popup.create_tween()
 	tween.tween_property(popup, "position:y", popup.global_position.y - 40, 0.5)
 	tween.chain().tween_property(popup, "modulate:a", 0.0, 0.2)
-	tween.chain().tween_callback(popup.queue_free)
+	tween.chain().tween_callback(func() -> void:
+		if is_instance_valid(popup):
+			popup.queue_free()
+	)
 
 func die() -> void:
 	hide_warn_fan()  # 清理 warn_fan 防止内存泄漏
