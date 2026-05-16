@@ -8,11 +8,16 @@ extends CharacterBody2D
 const HP_MAX: float = 500.0
 const ATK: float = 35.0
 const SPEED: float = 120.0
+const ATTACK_RANGE: float = 92.0
+const ATTACK_WINDUP: float = 0.65
+const ATTACK_COOLDOWN_BASE: float = 3.2
+const ATTACK_COOLDOWN_PHASE_STEP: float = 0.25
 
 ## 冲刺参数
-const DASH_SPEED: float = 400.0
-const DASH_DURATION: float = 0.6
-const DASH_COOLDOWN: float = 3.0
+const DASH_SPEED: float = 360.0
+const DASH_DURATION: float = 0.55
+const DASH_WINDUP: float = 0.8
+const DASH_COOLDOWN: float = 5.5
 
 ## 毒针参数
 const POISON_DAMAGE: float = 8.0
@@ -28,9 +33,12 @@ var phase: int = 1  # 1=普通, 2=冲刺, 3=召唤
 var is_attacking: bool = false
 var attack_timer: float = 0.0
 var attack_cooldown: float = 0.0
+var attack_target_pos: Vector2 = Vector2.ZERO
 
 var is_dashing: bool = false
+var is_dash_winding_up: bool = false
 var dash_timer: float = 0.0
+var dash_windup_timer: float = 0.0
 var dash_cooldown: float = 0.0
 var dash_direction: Vector2 = Vector2.ZERO
 
@@ -47,6 +55,9 @@ var invincible: float = 0.0
 
 var player: Node2D = null
 var main: Node = null
+var melee_warning: Polygon2D = null
+var dash_warning: Polygon2D = null
+var style_nodes: Array[Node] = []
 
 signal boss_died()
 
@@ -57,17 +68,19 @@ func _ready() -> void:
 	warning_sprite.visible = false
 	add_to_group("boss")
 	add_to_group("enemies")
+	_apply_visual_style()
 
 	main = get_tree().get_first_node_in_group("main")
 	player = get_tree().get_first_node_in_group("player")
 
 	# 随机选择初始攻击模式
-	attack_cooldown = randf_range(1.0, 2.0)
+	attack_cooldown = randf_range(2.0, 3.2)
 
 func _physics_process(delta: float) -> void:
 	if main and main.get("game_running") == false:
 		velocity = Vector2.ZERO
 		warning_sprite.visible = false
+		_clear_attack_warnings()
 		return
 
 	if invincible > 0:
@@ -88,7 +101,9 @@ func _physics_process(delta: float) -> void:
 	update_phase()
 
 	# 处理冲刺
-	if is_dashing:
+	if is_dash_winding_up:
+		process_dash_windup(delta)
+	elif is_dashing:
 		process_dash(delta)
 	elif dash_cooldown > 0:
 		dash_cooldown -= delta
@@ -98,7 +113,7 @@ func _physics_process(delta: float) -> void:
 		process_poison(delta)
 
 	# 普通攻击逻辑
-	if not is_dashing:
+	if not is_dashing and not is_dash_winding_up:
 		process_normal_attack(delta)
 
 	# 召唤冷却
@@ -106,14 +121,11 @@ func _physics_process(delta: float) -> void:
 		summon_cooldown -= delta
 
 	# 更新警告动画
-	if is_dashing:
-		warning_sprite.visible = true
-		rotation = dash_direction.angle()
-	else:
-		warning_sprite.visible = false
+	warning_sprite.visible = false
 
 	# 面向玩家
-	look_at(player.global_position)
+	if not is_dashing:
+		look_at(player.global_position)
 
 func update_phase() -> void:
 	var hp_ratio = hp / HP_MAX
@@ -141,41 +153,74 @@ func process_dash(delta: float) -> void:
 		is_dashing = false
 		dash_cooldown = DASH_COOLDOWN
 		invincible = 0.3
+		_clear_dash_warning()
+
+func process_dash_windup(delta: float) -> void:
+	dash_windup_timer -= delta
+	if player and is_instance_valid(player):
+		dash_direction = (player.global_position - global_position).normalized()
+	_update_dash_warning()
+	if dash_windup_timer <= 0:
+		is_dash_winding_up = false
+		is_dashing = true
+		dash_timer = DASH_DURATION
+		invincible = 0.2
+		spawn_dash_wind_effect()
 
 func process_normal_attack(delta: float) -> void:
 	var dist_to_player = global_position.distance_to(player.global_position)
 
 	# 阶段2: 更频繁冲刺
-	if phase >= 2 and dash_cooldown <= 0 and dist_to_player < 300:
-		start_dash()
+	if phase >= 2 and dash_cooldown <= 0 and dist_to_player < 340:
+		start_dash_windup()
 		return
 
-	# 普通追击
-	var dir = (player.global_position - global_position).normalized()
-	global_position += dir * SPEED * delta * 0.5
+	if is_attacking:
+		process_attack_windup(delta)
+		return
+
+	# 普通追击，保留一点距离让预警更清楚
+	if dist_to_player > ATTACK_RANGE * 0.72:
+		var dir = (player.global_position - global_position).normalized()
+		global_position += dir * SPEED * delta * 0.45
 
 	# 普通攻击
-	if attack_cooldown <= 0 and dist_to_player < 80:
-		perform_attack()
+	if attack_cooldown <= 0 and dist_to_player < ATTACK_RANGE:
+		start_attack_windup()
 
 	if attack_cooldown > 0:
 		attack_cooldown -= delta
 
-func start_dash() -> void:
-	is_dashing = true
-	dash_timer = DASH_DURATION
+func start_dash_windup() -> void:
+	is_dash_winding_up = true
+	dash_windup_timer = DASH_WINDUP
 	dash_direction = (player.global_position - global_position).normalized()
-	invincible = 0.2
-	spawn_dash_wind_effect()
+	_update_dash_warning()
+
+func start_attack_windup() -> void:
+	is_attacking = true
+	attack_timer = ATTACK_WINDUP
+	attack_target_pos = player.global_position
+	_update_melee_warning()
+
+func process_attack_windup(delta: float) -> void:
+	attack_timer -= delta
+	if player and is_instance_valid(player):
+		attack_target_pos = player.global_position
+	_update_melee_warning()
+	if attack_timer <= 0:
+		perform_attack()
 
 func perform_attack() -> void:
-	attack_cooldown = 2.0 - (phase - 1) * 0.3  # 阶段越高攻击越快
+	is_attacking = false
+	attack_cooldown = max(2.4, ATTACK_COOLDOWN_BASE - (phase - 1) * ATTACK_COOLDOWN_PHASE_STEP)
+	_clear_melee_warning()
 
 	var dist_to_player = global_position.distance_to(player.global_position)
-	if dist_to_player < 80:
+	if dist_to_player < ATTACK_RANGE:
 		# 普通攻击
 		player.take_damage(ATK)
-		spawn_hit_effect()
+		spawn_hit_effect(player.global_position)
 
 	# 30%概率发射毒针
 	if randf() < 0.3:
@@ -198,9 +243,25 @@ func fire_poison_needle() -> void:
 	collision.shape = shape
 	needle.add_child(collision)
 
-	var sprite = Sprite2D.new()
-	sprite.modulate = Color(0.3, 0.8, 0.3, 0.8)
-	needle.add_child(sprite)
+	var body = Polygon2D.new()
+	body.polygon = PackedVector2Array([
+		Vector2(16, 0),
+		Vector2(-8, -5),
+		Vector2(-4, 0),
+		Vector2(-8, 5)
+	])
+	body.color = Color(0.55, 1.0, 0.28, 0.95)
+	needle.add_child(body)
+
+	var glow = Polygon2D.new()
+	glow.polygon = PackedVector2Array([
+		Vector2(22, 0),
+		Vector2(-12, -10),
+		Vector2(-8, 0),
+		Vector2(-12, 10)
+	])
+	glow.color = Color(0.2, 1.0, 0.35, 0.28)
+	needle.add_child(glow)
 
 	needle.global_position = global_position
 	needle.add_to_group("poison_needle")
@@ -210,10 +271,12 @@ func fire_poison_needle() -> void:
 	# 飞向玩家
 	var _dir = (player.global_position - global_position).normalized()
 	var target_pos = player.global_position
+	needle.rotation = _dir.angle()
+	spawn_poison_target_warning(target_pos)
 
-	var tween = create_tween()
+	var tween = needle.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(needle, "global_position", target_pos, 0.4)
+	tween.tween_property(needle, "global_position", target_pos, 0.65)
 	tween.set_ease(Tween.EASE_IN)
 	tween.chain().tween_callback(func(): apply_poison(needle, target_pos))
 
@@ -221,13 +284,36 @@ func fire_poison_needle() -> void:
 	play_sound("poison_shot")
 
 func apply_poison(needle: Area2D, target_pos: Vector2) -> void:
-	needle.queue_free()
+	if is_instance_valid(needle):
+		needle.queue_free()
 
 	# 检查玩家是否还在目标位置附近
 	if player == null:
 		return
 	if player.global_position.distance_to(target_pos) < 50:
 		start_poison(player)
+
+func spawn_poison_target_warning(target_pos: Vector2) -> void:
+	var marker = Polygon2D.new()
+	var points = PackedVector2Array()
+	for i in range(24):
+		var angle = TAU * i / 24
+		var radius = 44.0 if i % 2 == 0 else 34.0
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	marker.polygon = points
+	marker.color = Color(0.28, 1.0, 0.22, 0.22)
+	marker.global_position = target_pos
+	marker.add_to_group("battle_effects")
+	get_tree().root.add_child(marker)
+
+	var tween = marker.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(marker, "scale", Vector2(0.55, 0.55), 0.65)
+	tween.tween_property(marker, "modulate:a", 0.0, 0.65)
+	tween.chain().tween_callback(func() -> void:
+		if is_instance_valid(marker):
+			marker.queue_free()
+	)
 
 func start_poison(target: Node2D) -> void:
 	is_poisoning = true
@@ -358,23 +444,81 @@ func spawn_resource_drop() -> void:
 			resource.add_to_group("battle_effects")
 			get_tree().root.add_child(resource)
 
-func spawn_hit_effect() -> void:
+func _update_melee_warning() -> void:
+	if not melee_warning or not is_instance_valid(melee_warning):
+		melee_warning = Polygon2D.new()
+		melee_warning.add_to_group("battle_effects")
+		get_tree().root.add_child(melee_warning)
+
+	var points = PackedVector2Array()
+	for i in range(36):
+		var angle = TAU * i / 36
+		var radius = ATTACK_RANGE if i % 2 == 0 else ATTACK_RANGE * 0.82
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	melee_warning.polygon = points
+	melee_warning.global_position = global_position
+	var pulse = 0.45 + 0.25 * sin(Time.get_ticks_msec() / 80.0)
+	melee_warning.color = Color(1.0, 0.24, 0.08, pulse)
+
+func _clear_melee_warning() -> void:
+	if melee_warning and is_instance_valid(melee_warning):
+		melee_warning.queue_free()
+	melee_warning = null
+
+func _update_dash_warning() -> void:
+	if dash_direction == Vector2.ZERO:
+		return
+	if not dash_warning or not is_instance_valid(dash_warning):
+		dash_warning = Polygon2D.new()
+		dash_warning.add_to_group("battle_effects")
+		get_tree().root.add_child(dash_warning)
+	var length = DASH_SPEED * DASH_DURATION + 85.0
+	var width = 58.0
+	dash_warning.polygon = PackedVector2Array([
+		Vector2(0, -width * 0.5),
+		Vector2(length, -width * 0.5),
+		Vector2(length + 36, 0),
+		Vector2(length, width * 0.5),
+		Vector2(0, width * 0.5)
+	])
+	dash_warning.global_position = global_position
+	dash_warning.rotation = dash_direction.angle()
+	var warning_alpha = 0.28 + 0.18 * sin(Time.get_ticks_msec() / 70.0)
+	dash_warning.color = Color(1.0, 0.16, 0.08, warning_alpha)
+
+func _clear_dash_warning() -> void:
+	if dash_warning and is_instance_valid(dash_warning):
+		dash_warning.queue_free()
+	dash_warning = null
+
+func _clear_attack_warnings() -> void:
+	_clear_melee_warning()
+	_clear_dash_warning()
+
+func spawn_hit_effect(pos: Vector2 = Vector2.INF) -> void:
 	var effect = Polygon2D.new()
 	var points = PackedVector2Array([
-		Vector2(-8, -8), Vector2(8, -8),
-		Vector2(8, 8), Vector2(-8, 8)
+		Vector2(0, -18), Vector2(8, -6),
+		Vector2(22, -4), Vector2(10, 5),
+		Vector2(14, 20), Vector2(0, 10),
+		Vector2(-14, 20), Vector2(-10, 5),
+		Vector2(-22, -4), Vector2(-8, -6)
 	])
 	effect.polygon = points
-	effect.color = Color(1.0, 0.5, 0.0, 0.8)
-	effect.global_position = global_position
+	effect.color = Color(1.0, 0.72, 0.22, 0.88)
+	effect.global_position = global_position if pos == Vector2.INF else pos
 	effect.add_to_group("battle_effects")
 	get_tree().root.add_child(effect)
 
-	var tween = create_tween()
+	var tween = effect.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(effect, "scale", Vector2(2.0, 2.0), 0.15)
-	tween.chain().tween_property(effect, "modulate:a", 0.0, 0.1)
-	tween.chain().tween_callback(effect.queue_free)
+	tween.tween_property(effect, "scale", Vector2(2.4, 2.4), 0.18)
+	tween.tween_property(effect, "rotation", randf_range(-0.7, 0.7), 0.18)
+	tween.chain().tween_property(effect, "modulate:a", 0.0, 0.12)
+	tween.chain().tween_callback(func() -> void:
+		if is_instance_valid(effect):
+			effect.queue_free()
+	)
 
 func spawn_phase_change_effect() -> void:
 	# 阶段转换时发出冲击波
@@ -444,6 +588,57 @@ func spawn_summon_effect() -> void:
 		tween.set_ease(Tween.EASE_IN)
 		tween.chain().tween_property(rune, "modulate:a", 0.0, 0.2)
 		tween.chain().tween_callback(rune.queue_free)
+
+func _apply_visual_style() -> void:
+	var body = get_node_or_null("Body")
+	var head = get_node_or_null("Head")
+	var wings = get_node_or_null("Wings")
+	var wings2 = get_node_or_null("Wings2")
+	var eyes = get_node_or_null("Eyes")
+	var eyes2 = get_node_or_null("Eyes2")
+	if body:
+		body.color = Color(0.42, 0.18, 0.48, 1.0)
+	if head:
+		head.color = Color(0.30, 0.09, 0.34, 1.0)
+	if wings:
+		wings.color = Color(0.82, 0.92, 1.0, 0.46)
+	if wings2:
+		wings2.color = Color(0.82, 0.92, 1.0, 0.46)
+	if eyes:
+		eyes.color = Color(1.0, 0.78, 0.12, 1.0)
+	if eyes2:
+		eyes2.color = Color(1.0, 0.78, 0.12, 1.0)
+
+	_add_style_polygon("ThoraxStripeA", PackedVector2Array([
+		Vector2(-28, -8), Vector2(28, -8), Vector2(24, -2), Vector2(-24, -2)
+	]), Color(0.95, 0.66, 0.18, 0.78), Vector2.ZERO)
+	_add_style_polygon("ThoraxStripeB", PackedVector2Array([
+		Vector2(-25, 10), Vector2(25, 10), Vector2(20, 17), Vector2(-20, 17)
+	]), Color(0.95, 0.50, 0.12, 0.72), Vector2.ZERO)
+	_add_style_polygon("Stinger", PackedVector2Array([
+		Vector2(0, 46), Vector2(-11, 28), Vector2(11, 28)
+	]), Color(0.13, 0.06, 0.18, 1.0), Vector2.ZERO)
+	_add_style_polygon("CrownGlow", _make_ring_points(52.0, 44.0, 32), Color(0.95, 0.72, 0.18, 0.18), Vector2(0, -8))
+
+func _add_style_polygon(node_name: String, points: PackedVector2Array, color: Color, pos: Vector2) -> void:
+	if has_node(node_name):
+		return
+	var poly = Polygon2D.new()
+	poly.name = node_name
+	poly.polygon = points
+	poly.color = color
+	poly.position = pos
+	poly.z_index = 3
+	add_child(poly)
+	style_nodes.append(poly)
+
+func _make_ring_points(outer_radius: float, inner_radius: float, segments: int) -> PackedVector2Array:
+	var points = PackedVector2Array()
+	for i in range(segments):
+		var angle = TAU * i / segments
+		var radius = outer_radius if i % 2 == 0 else inner_radius
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	return points
 
 func spawn_death_effect() -> void:
 	# 爆炸效果
