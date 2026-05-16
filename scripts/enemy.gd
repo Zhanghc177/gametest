@@ -62,6 +62,8 @@ func _ready() -> void:
 	health_bar.max_value = HP
 	health_bar.value = hp
 	_apply_appearance_variants()
+	_ensure_enemy_visual_style()
+	_tint_enemy_style(Color(0.29, 0.345, 0.416, 1))
 	# _init_glow_effect()  # TEMP DISABLED - causing hang
 
 ## 应用外观变体：随机颜色、尺寸、标记
@@ -98,6 +100,61 @@ func _apply_appearance_variants() -> void:
 ## 调整颜色
 func _adjust_color(base: Color, r_off: float, g_off: float, b_off: float) -> Color:
 	return Color(clamp(base.r + r_off, 0, 1), clamp(base.g + g_off, 0, 1), clamp(base.b + b_off, 0, 1), base.a)
+
+func _ensure_enemy_visual_style() -> void:
+	_add_enemy_poly("ShellHighlight", PackedVector2Array([
+		Vector2(-16, -11), Vector2(16, -11), Vector2(20, 0), Vector2(13, 18), Vector2(-13, 18), Vector2(-20, 0)
+	]), Color(0.55, 0.62, 0.70, 0.38), Vector2.ZERO, 2)
+	_add_enemy_poly("HeadPlate", PackedVector2Array([
+		Vector2(-12, -32), Vector2(12, -32), Vector2(16, -20), Vector2(9, -13), Vector2(-9, -13), Vector2(-16, -20)
+	]), Color(0.30, 0.36, 0.44, 0.88), Vector2.ZERO, 2)
+	_add_enemy_poly("Mandibles", PackedVector2Array([
+		Vector2(-8, -30), Vector2(-22, -39), Vector2(-14, -28), Vector2(0, -25), Vector2(14, -28), Vector2(22, -39), Vector2(8, -30)
+	]), Color(0.12, 0.11, 0.13, 1.0), Vector2.ZERO, 3)
+	for i in range(3):
+		var y = -7 + i * 12
+		_add_enemy_poly("LegL%d" % i, PackedVector2Array([
+			Vector2(-17, y), Vector2(-37, y - 10), Vector2(-39, y - 5), Vector2(-18, y + 4)
+		]), Color(0.16, 0.18, 0.22, 1.0), Vector2.ZERO, -1)
+		_add_enemy_poly("LegR%d" % i, PackedVector2Array([
+			Vector2(17, y), Vector2(37, y - 10), Vector2(39, y - 5), Vector2(18, y + 4)
+		]), Color(0.16, 0.18, 0.22, 1.0), Vector2.ZERO, -1)
+	_add_enemy_poly("ThreatGlow", _enemy_ring_points(36.0, 30.0, 28), Color(0.95, 0.20, 0.12, 0.12), Vector2(0, -5), -3)
+
+func _add_enemy_poly(node_name: String, points: PackedVector2Array, color: Color, pos: Vector2, z: int) -> void:
+	if has_node(node_name):
+		var existing = get_node(node_name)
+		if not marker_nodes.has(existing):
+			marker_nodes.append(existing)
+		return
+	var poly = Polygon2D.new()
+	poly.name = node_name
+	poly.polygon = points
+	poly.color = color
+	poly.position = pos
+	poly.z_index = z
+	add_child(poly)
+	marker_nodes.append(poly)
+
+func _enemy_ring_points(outer_radius: float, inner_radius: float, segments: int) -> PackedVector2Array:
+	var points = PackedVector2Array()
+	for i in range(segments):
+		var angle = TAU * i / segments
+		var radius = outer_radius if i % 2 == 0 else inner_radius
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	return points
+
+func _tint_enemy_style(base_color: Color) -> void:
+	for marker in marker_nodes:
+		if marker is Polygon2D:
+			var poly = marker as Polygon2D
+			if poly.name == "ShellHighlight":
+				poly.color = base_color.lightened(0.28)
+				poly.color.a = 0.42
+			elif poly.name == "HeadPlate":
+				poly.color = base_color.darkened(0.18)
+			elif poly.name.begins_with("Leg") or poly.name == "Mandibles":
+				poly.color = base_color.darkened(0.52)
 
 ## 初始化发光轮廓效果
 func _init_glow_effect() -> void:

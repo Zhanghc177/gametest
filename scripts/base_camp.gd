@@ -64,6 +64,7 @@ func _ready() -> void:
 	print("BaseCamp: _ready 开始")
 	# 连接按钮信号 - 使用直接路径
 	prepare_for_show()
+	_apply_base_visual_style()
 	$CenterContainer/VBox/EnterBattleBtn.pressed.connect(_on_enter_battle_pressed)
 	print("BaseCamp: EnterBattleBtn 信号已连接")
 	$CenterContainer/VBox/ShopBtn.pressed.connect(_on_shop_pressed)
@@ -93,6 +94,93 @@ func prepare_for_show() -> void:
 		if child is Control:
 			child.position = Vector2.ZERO
 			child.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+func _apply_base_visual_style() -> void:
+	var bg = get_node_or_null("Background")
+	if bg is ColorRect:
+		bg.color = Color(0.055, 0.050, 0.060, 1.0)
+	_ensure_cave_backdrop()
+	var vbox = get_node_or_null("CenterContainer/VBox")
+	if vbox:
+		vbox.add_theme_constant_override("separation", 8)
+		for child in vbox.get_children():
+			if child is Label:
+				_style_base_label(child)
+			elif child is Button:
+				_style_base_button(child)
+			elif child is HBoxContainer:
+				for nested in child.get_children():
+					if nested is Button:
+						_style_base_button(nested)
+
+func _ensure_cave_backdrop() -> void:
+	if has_node("CaveBackdrop"):
+		return
+	var layer = Node2D.new()
+	layer.name = "CaveBackdrop"
+	layer.z_index = -1
+	add_child(layer)
+	move_child(layer, 1)
+	for i in range(32):
+		var stone = Polygon2D.new()
+		var radius = randf_range(12.0, 34.0)
+		var points = PackedVector2Array()
+		for p in range(7):
+			var angle = TAU * p / 7.0
+			points.append(Vector2(cos(angle), sin(angle)) * radius * randf_range(0.65, 1.15))
+		stone.polygon = points
+		stone.color = Color(0.11, 0.095, 0.085, randf_range(0.20, 0.38))
+		stone.position = Vector2(randf_range(20, 1060), randf_range(40, 1880))
+		layer.add_child(stone)
+	var glow = Polygon2D.new()
+	glow.name = "NestGlow"
+	glow.polygon = _ui_ring_points(260.0, 215.0, 48)
+	glow.color = Color(0.72, 0.43, 0.16, 0.13)
+	glow.position = Vector2(540, 940)
+	layer.add_child(glow)
+
+func _style_base_label(label: Label) -> void:
+	label.add_theme_color_override("font_color", Color(0.90, 0.84, 0.70))
+	if label.name == "Title":
+		label.add_theme_font_size_override("font_size", 34)
+		label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.36))
+	elif label.name.ends_with("Label"):
+		label.add_theme_font_size_override("font_size", 17)
+
+func _style_base_button(button: Button) -> void:
+	button.custom_minimum_size.y = max(button.custom_minimum_size.y, 42.0)
+	button.add_theme_stylebox_override("normal", _make_panel_style(Color(0.19, 0.13, 0.09, 0.94), Color(0.54, 0.36, 0.18, 1.0), 2))
+	button.add_theme_stylebox_override("hover", _make_panel_style(Color(0.27, 0.18, 0.10, 0.98), Color(0.86, 0.58, 0.23, 1.0), 2))
+	button.add_theme_stylebox_override("pressed", _make_panel_style(Color(0.12, 0.08, 0.06, 1.0), Color(1.0, 0.70, 0.28, 1.0), 2))
+	button.add_theme_stylebox_override("disabled", _make_panel_style(Color(0.09, 0.08, 0.08, 0.72), Color(0.25, 0.23, 0.20, 1.0), 1))
+	button.add_theme_color_override("font_color", Color(0.96, 0.86, 0.68))
+	button.add_theme_color_override("font_disabled_color", Color(0.45, 0.42, 0.36))
+
+func _make_panel_style(bg_color: Color, border_color: Color, border_width: int) -> StyleBoxFlat:
+	var style = StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = border_color
+	style.border_width_left = border_width
+	style.border_width_top = border_width
+	style.border_width_right = border_width
+	style.border_width_bottom = border_width
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	return style
+
+func _ui_ring_points(outer_radius: float, inner_radius: float, segments: int) -> PackedVector2Array:
+	var points = PackedVector2Array()
+	for i in range(segments):
+		var angle = TAU * i / segments
+		var radius = outer_radius if i % 2 == 0 else inner_radius
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	return points
 
 func _init_from_game_manager() -> void:
 	var game_manager = get_tree().get_first_node_in_group("game_manager")
@@ -384,6 +472,7 @@ func _show_ant_selection_panel() -> void:
 	panel.name = "BattleAntSelectPanel"
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.modulate = Color(1, 1, 1, 0.98)
+	panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.055, 0.045, 0.038, 0.96), Color(0.72, 0.46, 0.18, 1.0), 3))
 	add_child(panel)
 
 	var outer = VBoxContainer.new()
@@ -394,6 +483,7 @@ func _show_ant_selection_panel() -> void:
 	title.text = "选择出战蚂蚁"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", Color(1.0, 0.78, 0.36))
 	outer.add_child(title)
 
 	for ant_type in available_types:
@@ -401,12 +491,14 @@ func _show_ant_selection_panel() -> void:
 		btn.custom_minimum_size = Vector2(360, 54)
 		btn.text = "%s  x%d" % [_get_ant_type_name(ant_type), ant_count.get(ant_type, 0)]
 		btn.pressed.connect(_on_battle_ant_selected.bind(ant_type))
+		_style_base_button(btn)
 		outer.add_child(btn)
 
 	var cancel_btn = Button.new()
 	cancel_btn.custom_minimum_size = Vector2(360, 46)
 	cancel_btn.text = "取消"
 	cancel_btn.pressed.connect(_close_ant_selection_panel)
+	_style_base_button(cancel_btn)
 	outer.add_child(cancel_btn)
 
 func _get_available_battle_ant_types() -> Array:
@@ -478,6 +570,7 @@ func _show_shop_panel() -> void:
 	shop_panel.grow_horizontal = 2
 	shop_panel.grow_vertical = 2
 	shop_panel.modulate = Color(0, 0, 0, 0.8)
+	shop_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.055, 0.045, 0.038, 0.96), Color(0.72, 0.46, 0.18, 1.0), 3))
 	add_child(shop_panel)
 
 	var shop_vbox = VBoxContainer.new()
@@ -490,6 +583,7 @@ func _show_shop_panel() -> void:
 	title.name = "ShopTitle"
 	title.text = "商店"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_style_base_label(title)
 	shop_vbox.add_child(title)
 
 	# 商店物品列表
@@ -499,6 +593,7 @@ func _show_shop_panel() -> void:
 		item_btn.name = item_id
 		item_btn.text = "%s - %d %s (%s)" % [item.name, item.cost, item.cost_type, item.description]
 		item_btn.pressed.connect(_on_shop_item_pressed.bind(item_id))
+		_style_base_button(item_btn)
 		shop_vbox.add_child(item_btn)
 
 	# 关闭按钮
@@ -506,6 +601,7 @@ func _show_shop_panel() -> void:
 	close_btn.name = "CloseShopBtn"
 	close_btn.text = "关闭"
 	close_btn.pressed.connect(_on_close_shop_pressed)
+	_style_base_button(close_btn)
 	shop_vbox.add_child(close_btn)
 
 	shop_opened = true

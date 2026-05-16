@@ -179,6 +179,7 @@ func _ready() -> void:
 	setup_camera()
 	setup_extraction_point()
 	_ensure_skill_touch_button()
+	_apply_battle_visual_style()
 	print("Main: _ready 完成")
 
 func _process(_delta: float) -> void:
@@ -255,6 +256,87 @@ func _ensure_skill_touch_button() -> void:
 	skill_button.offset_right = -120.0
 	skill_button.offset_bottom = -200.0
 	touch_controls.add_child(skill_button)
+
+func _apply_battle_visual_style() -> void:
+	_ensure_cave_floor()
+	if canvas_layer:
+		_style_hud_panel(canvas_layer.get_node_or_null("ResourceDisplay"))
+		_style_hud_label(canvas_layer.get_node_or_null("ResourceDisplay/VBox/Label"), Color(1.0, 0.78, 0.34))
+		_style_hud_label(canvas_layer.get_node_or_null("ResourceDisplay/VBox/ResourceLabel"), Color(0.90, 0.84, 0.70))
+		_style_hud_label(canvas_layer.get_node_or_null("BuffLabel"), Color(0.80, 0.90, 1.0))
+		_style_hud_label(canvas_layer.get_node_or_null("EnemyCountLabel"), Color(1.0, 0.58, 0.42))
+		_style_hud_label(canvas_layer.get_node_or_null("ExtractProgress"), Color(0.52, 1.0, 0.56))
+		_style_hud_label(canvas_layer.get_node_or_null("BossNameLabel"), Color(1.0, 0.74, 0.25))
+		_style_hud_label(canvas_layer.get_node_or_null("BossPhaseLabel"), Color(0.90, 0.78, 0.60))
+		_style_progress_bar(canvas_layer.get_node_or_null("HealthBar"), Color(0.18, 0.62, 0.32, 1.0))
+		_style_progress_bar(canvas_layer.get_node_or_null("BossHealthBar"), Color(0.82, 0.18, 0.26, 1.0))
+	var touch_controls = get_node_or_null("TouchControls")
+	if touch_controls:
+		for child in touch_controls.get_children():
+			if child is Button:
+				_style_touch_button(child)
+
+func _ensure_cave_floor() -> void:
+	if has_node("CaveFloor"):
+		return
+	var floor = Node2D.new()
+	floor.name = "CaveFloor"
+	floor.z_index = -20
+	add_child(floor)
+	move_child(floor, 0)
+	var backdrop = ColorRect.new()
+	backdrop.name = "Backdrop"
+	backdrop.color = Color(0.075, 0.065, 0.055, 1.0)
+	backdrop.size = Vector2(1080, 1920)
+	floor.add_child(backdrop)
+	for i in range(52):
+		var pebble = Polygon2D.new()
+		var radius = randf_range(5.0, 18.0)
+		var points = PackedVector2Array()
+		for p in range(6):
+			var angle = TAU * p / 6.0
+			points.append(Vector2(cos(angle), sin(angle)) * radius * randf_range(0.55, 1.18))
+		pebble.polygon = points
+		pebble.color = Color(0.12, 0.105, 0.085, randf_range(0.18, 0.42))
+		pebble.position = Vector2(randf_range(20, 1060), randf_range(80, 1860))
+		floor.add_child(pebble)
+
+func _style_hud_panel(node: Node) -> void:
+	if node is PanelContainer:
+		node.add_theme_stylebox_override("panel", _hud_style(Color(0.07, 0.06, 0.055, 0.84), Color(0.50, 0.34, 0.16, 0.95), 2))
+
+func _style_hud_label(node: Node, color: Color) -> void:
+	if node is Label:
+		node.add_theme_color_override("font_color", color)
+		node.add_theme_font_size_override("font_size", 16)
+
+func _style_progress_bar(node: Node, fill_color: Color) -> void:
+	if node is ProgressBar:
+		node.add_theme_stylebox_override("background", _hud_style(Color(0.06, 0.05, 0.045, 0.88), Color(0.38, 0.26, 0.13, 0.95), 2))
+		node.add_theme_stylebox_override("fill", _hud_style(fill_color, fill_color.lightened(0.25), 1))
+
+func _style_touch_button(button: Button) -> void:
+	button.add_theme_stylebox_override("normal", _hud_style(Color(0.12, 0.09, 0.07, 0.86), Color(0.58, 0.38, 0.18, 1.0), 2))
+	button.add_theme_stylebox_override("pressed", _hud_style(Color(0.25, 0.16, 0.08, 0.92), Color(0.95, 0.66, 0.26, 1.0), 2))
+	button.add_theme_color_override("font_color", Color(0.98, 0.88, 0.66))
+
+func _hud_style(bg_color: Color, border_color: Color, border_width: int) -> StyleBoxFlat:
+	var style = StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = border_color
+	style.border_width_left = border_width
+	style.border_width_top = border_width
+	style.border_width_right = border_width
+	style.border_width_bottom = border_width
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	return style
 
 func _mark_battle_effect(node: Node) -> void:
 	node.add_to_group("battle_effects")

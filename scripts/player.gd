@@ -152,6 +152,7 @@ const FOOTSTEP_INTERVAL: float = 0.15
 
 const TEMPORARY_ABILITY_DURATION: float = 60.0
 var evolution_color: Color = Color(1.0, 1.0, 1.0, 1.0)
+var style_nodes: Array[Node] = []
 
 ## 性能优化配置
 const MAX_ATTACK_PARTICLES: int = 5
@@ -264,6 +265,7 @@ func _ready() -> void:
 	buff_effects = Node2D.new()
 	buff_effects.name = "BuffEffects"
 	add_child(buff_effects)
+	_ensure_player_visual_style()
 
 func _physics_process(delta: float) -> void:
 	var main = get_tree().get_first_node_in_group("main")
@@ -557,6 +559,66 @@ func _apply_class_color(color: Color) -> void:
 		body.color = color
 	if abdomen:
 		abdomen.color = color.darkened(0.15)
+	_ensure_player_visual_style()
+	for node in style_nodes:
+		if node is Polygon2D:
+			var poly = node as Polygon2D
+			if poly.name == "ClassGlow":
+				poly.color = Color(color.r, color.g, color.b, 0.22)
+			elif poly.name.begins_with("Leg") or poly.name.begins_with("Antenna"):
+				poly.color = color.darkened(0.42)
+			elif poly.name == "Mandibles":
+				poly.color = color.darkened(0.55)
+			elif poly.name == "BackPlate":
+				poly.color = color.lightened(0.18)
+
+func _ensure_player_visual_style() -> void:
+	if not style_nodes.is_empty():
+		return
+	var root = ant_body if ant_body else self
+	_add_player_poly(root, "ClassGlow", _ring_points(28.0, 22.0, 28), Color(0.9, 0.55, 0.2, 0.22), Vector2(0, -1), -3)
+	_add_player_poly(root, "BackPlate", PackedVector2Array([
+		Vector2(-9, -8), Vector2(9, -8), Vector2(13, 4), Vector2(7, 20), Vector2(-7, 20), Vector2(-13, 4)
+	]), Color(1.0, 0.7, 0.35, 0.34), Vector2.ZERO, 2)
+	_add_player_poly(root, "Mandibles", PackedVector2Array([
+		Vector2(-7, -32), Vector2(-18, -43), Vector2(-11, -31), Vector2(0, -29), Vector2(11, -31), Vector2(18, -43), Vector2(7, -32)
+	]), Color(0.24, 0.12, 0.05, 1.0), Vector2.ZERO, 4)
+	for i in range(3):
+		var y = -7 + i * 13
+		_add_player_poly(root, "LegL%d" % i, PackedVector2Array([
+			Vector2(-9, y), Vector2(-34, y - 10), Vector2(-36, y - 4), Vector2(-10, y + 4)
+		]), Color(0.25, 0.12, 0.05, 1.0), Vector2.ZERO, -1)
+		_add_player_poly(root, "LegR%d" % i, PackedVector2Array([
+			Vector2(9, y), Vector2(34, y - 10), Vector2(36, y - 4), Vector2(10, y + 4)
+		]), Color(0.25, 0.12, 0.05, 1.0), Vector2.ZERO, -1)
+	_add_player_poly(root, "AntennaL", PackedVector2Array([
+		Vector2(-5, -33), Vector2(-22, -58), Vector2(-18, -61), Vector2(-2, -34)
+	]), Color(0.24, 0.12, 0.05, 1.0), Vector2.ZERO, -1)
+	_add_player_poly(root, "AntennaR", PackedVector2Array([
+		Vector2(5, -33), Vector2(22, -58), Vector2(18, -61), Vector2(2, -34)
+	]), Color(0.24, 0.12, 0.05, 1.0), Vector2.ZERO, -1)
+
+func _add_player_poly(parent: Node, node_name: String, points: PackedVector2Array, color: Color, pos: Vector2, z: int) -> void:
+	if parent.has_node(node_name):
+		var existing = parent.get_node(node_name)
+		style_nodes.append(existing)
+		return
+	var poly = Polygon2D.new()
+	poly.name = node_name
+	poly.polygon = points
+	poly.color = color
+	poly.position = pos
+	poly.z_index = z
+	parent.add_child(poly)
+	style_nodes.append(poly)
+
+func _ring_points(outer_radius: float, inner_radius: float, segments: int) -> PackedVector2Array:
+	var points = PackedVector2Array()
+	for i in range(segments):
+		var angle = TAU * i / segments
+		var radius = outer_radius if i % 2 == 0 else inner_radius
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	return points
 
 func activate_class_skill() -> void:
 	if skill_cooldown > 0 or hp <= 0:
